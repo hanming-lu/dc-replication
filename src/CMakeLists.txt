@@ -15,6 +15,9 @@ set(protobuf_files
 
 set(source_files
     main.cc
+    config.h
+    crypto_util.hpp crypto_util.cc
+    util/logging.hpp util/logging.cc
 )
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
