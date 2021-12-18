@@ -1,12 +1,15 @@
+#include <cassert>
 #include <cstdlib>
 #include <iostream>
 #include <netinet/in.h>
+#include <string>
 #include <sys/socket.h>
 #include <unistd.h>
 
 #include "config.h"
 #include "capsule.pb.h"
 #include "crypto_util.hpp"
+#include "storage.hpp"
 #include "util/logging.hpp"
 
 /* Admin Server */
@@ -14,12 +17,12 @@
 int run_admin_server()
 {
     /*
-  (v2 Todo)
-  Setup:
-  1. Register with multicast tree
-  2. Start thread for listening for data server connection 
-  3. Start thread for failure recovery  
-  */
+    (v2 Todo)
+    Setup:
+    1. Register with multicast tree
+    2. Start thread for listening for data server connection 
+    3. Start thread for failure recovery  
+    */
 
     return 0;
 }
@@ -29,14 +32,33 @@ int run_admin_server()
 int data_server_setup()
 {
     /* 
-  Setup:
-  1. Leader election (v2 Todo)
-  2. Register with admin (v2 Todo)
-  2.1 Get Leader's address from admin (v2 Todo)
-  3. Register with multicast tree (v2 Todo)
-  4. Initiate a on-disk database (a hashtable for v1)
-  5. Start listening for multicast message
-  */
+    Setup:
+    1. Leader election (v2 Todo)
+    2. Register with admin (v2 Todo)
+    2.1 Get Leader's address from admin (v2 Todo)
+    3. Register with multicast tree (v2 Todo)
+    4. Initiate a on-disk database (a hashtable for v1)
+    5. Start listening for multicast message
+    */
+
+    // initiate rocksDB for disk storage
+    std::string storage_path = "/tmp/testdb";
+    Storage storage = Storage(storage_path);
+
+    // test: Insert value
+    std::string dummy_key = "dummy_key";
+    capsule::CapsulePDU dummy_dc;
+    bool res = storage.put(dummy_key, &dummy_dc);
+    assert(res == true);
+
+    // test: Read back value
+    res = storage.get(dummy_key, &dummy_dc);
+    assert(res == true);
+
+    // test: Read key which does not exist
+    std::string DNE_key = "DNE_key";
+    res = storage.get(DNE_key, &dummy_dc);
+    assert(res == false);
 
     return 0;
 }
@@ -44,14 +66,14 @@ int data_server_setup()
 int data_server_handle_msg()
 {
     /*
-  Data Server Handling:
-  1. Receive a mcast msg (i.e. a record)
-  2. Decrypt (if needed)
-  2. Recompute its hash & verify signature
-  3. Find its parent using prevHash
-  4. Append it to its parent & store on disk
-  5. send signed ack to leader
-  */
+    Data Server Handling:
+    1. Receive a mcast msg (i.e. a record)
+    2. Decrypt (if needed)
+    2. Recompute its hash & verify signature
+    3. Find its parent using prevHash
+    4. Append it to its parent & store on disk
+    5. send signed ack to leader
+    */
 
     // Todo: receive msg from mcast
     capsule::CapsulePDU dummy_dc;
@@ -85,12 +107,12 @@ int data_server_handle_msg()
 int data_server_leader_handle_ack()
 {
     /*
-  Leader Ack Handling:
-  1. Listen for acks from followers
-  2. Verify ack signature
-  3. Store in a on-memory hashtable
-  4. When a threshold of acks is reached, send threshold signature back to client
-  */
+    Leader Ack Handling:
+    1. Listen for acks from followers
+    2. Verify ack signature
+    3. Store in a on-memory hashtable
+    4. When a threshold of acks is reached, send threshold signature back to client
+    */
     return 0;
 }
 
@@ -168,10 +190,10 @@ int thread_start_listen_mcast()
 int main(int argc, char *argv[])
 {
     /*
-  1. start admin server thread
-  2. start data server threads
-  */
-    data_server_handle_msg();
+    1. start admin server thread
+    2. start data server threads
+    */
+    data_server_setup();
 
     return 0;
 }
