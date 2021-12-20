@@ -1,0 +1,9 @@
+[submodule "third_party/cppzmq"]
+	path = third_party/cppzmq
+	url = git@github.com:zeromq/cppzmq.git
+[submodule "third_party/libzmq"]
+	path = third_party/libzmq
+	url = git@github.com:zeromq/libzmq.git
+[submodule "third_party/rocksdb"]
+	path = third_party/rocksdb
+	url = git@github.com:facebook/rocksdb.git

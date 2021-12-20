@@ -9,6 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Protobuf
 find_package(Protobuf REQUIRED)
+find_package(cppzmq REQUIRED)
 
 set(source_files
     main.cc
@@ -33,4 +34,5 @@ include_directories(${CMAKE_SOURCE_DIR}/../third_party/rocksdb/include)
 target_link_libraries(${PROJECT_NAME} PUBLIC
   protobuf::libprotobuf
   rocksdb
+  cppzmq
 )

@@ -5,6 +5,7 @@
 #include <string>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <zmq.hpp>
 
 #include "config.h"
 #include "capsule.pb.h"
@@ -193,7 +194,6 @@ int main(int argc, char *argv[])
     1. start admin server thread
     2. start data server threads
     */
-    data_server_setup();
 
     return 0;
 }
