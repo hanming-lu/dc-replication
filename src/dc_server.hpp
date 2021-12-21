@@ -14,21 +14,18 @@ public:
 
     int dc_server_run();
 
-    int dc_server_leader_run();
-
 private:
     Storage storage;
     int64_t server_id;
+    bool is_leader = false;
     std::string signing_key = "dummy_signing_key";
     std::string verifying_key = "dummy_verifying_key";
     std::queue<std::string> mcast_msg_q;
     std::mutex mcast_msg_q_mutex;
-    std::queue<capsule::CapsulePDU> ack_q;
-    std::mutex ack_q_mutex;
 
-    int listen_mcast();
-    int handle_mcast_msg();
-    int send_ack_to_leader();
+    int thread_listen_mcast();
+    int thread_handle_mcast_msg();
+    int thread_leader_handle_ack();
 };
 
 #endif // __DCSERVER_H

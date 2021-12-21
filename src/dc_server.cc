@@ -1,3 +1,8 @@
+#include <chrono>
+#include <string>
+#include <thread>
+#include <zmq.hpp>
+
 #include "capsule.pb.h"
 #include "crypto_util.hpp"
 #include "dc_server.hpp"
@@ -7,7 +12,7 @@
 DC_Server::DC_Server(const int64_t server_id,
                      const std::string storage_path) : server_id(server_id), storage(Storage(storage_path))
 {
-    // initiate storage
+    // initiate on-disk storage
 }
 
 int DC_Server::dc_server_setup()
@@ -18,8 +23,6 @@ int DC_Server::dc_server_setup()
     2. Register with admin (v2 Todo)
     2.1 Get Leader's address from admin (v2 Todo)
     3. Register with multicast tree (v2 Todo)
-    4. Initiate a on-disk database (a hashtable for v1)
-    5. Start listening for multicast message
     */
 
     return 0;
@@ -37,98 +40,66 @@ int DC_Server::dc_server_run()
     5. send signed ack to leader
     */
 
-    // Todo: Implement threading
-    listen_mcast();
-    handle_mcast_msg();
-    send_ack_to_leader();
+    std::vector<std::thread> task_threads;
 
-    // Todo: wait on send_ack_to_leader's thread
+    // thread to receive msg from mcast
+    task_threads.push_back(std::thread(&DC_Server::thread_listen_mcast, this));
+    // thread to handle msg from mcast, generate ack
+    task_threads.push_back(std::thread(&DC_Server::thread_handle_mcast_msg, this));
+    // thread to start leader ack handling
+    if (this->is_leader)
+    {
+        task_threads.push_back(std::thread(&DC_Server::thread_leader_handle_ack, this));
+    }
+
+    // Wait for all tasks to finish
+    for (auto &t : task_threads)
+    {
+        t.join();
+    }
 
     return 0;
 }
 
-int DC_Server::dc_server_leader_run()
+int DC_Server::thread_listen_mcast()
 {
-    /*
-    Leader Ack Handling:
-    1. Listen for acks from followers
-    2. Verify ack signature
-    3. Store in a on-memory hashtable
-    4. When a threshold of acks is reached, send threshold signature back to client
-    */
-    return 0;
-}
+    while (true)
+    {
+        capsule::CapsulePDU dummy_dc;
+        dummy_dc.set_prevhash("init");
+        std::string dummy_msg;
+        dummy_dc.SerializeToString(&dummy_msg);
 
-int DC_Server::listen_mcast()
-{
-    // // Create a socket (IPv4, TCP)
-    // int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    // if (sockfd == -1)
-    // {
-    //     std::cout << "Failed to create socket. errno: " << errno << std::endl;
-    //     exit(EXIT_FAILURE);
-    // }
-
-    // // Listen to port 9999 on any address
-    // sockaddr_in sockaddr;
-    // sockaddr.sin_family = AF_INET;
-    // sockaddr.sin_addr.s_addr = INADDR_ANY;
-    // sockaddr.sin_port = htons(9999); // htons is necessary to convert a number to
-    //                                  // network byte order
-    // if (bind(sockfd, (struct sockaddr *)&sockaddr, sizeof(sockaddr)) < 0)
-    // {
-    //     std::cout << "Failed to bind to port 9999. errno: " << errno << std::endl;
-    //     exit(EXIT_FAILURE);
-    // }
-
-    // // Start listening. Hold at most 10 connections in the queue
-    // if (listen(sockfd, 10) < 0)
-    // {
-    //     std::cout << "Failed to listen on socket. errno: " << errno << std::endl;
-    //     exit(EXIT_FAILURE);
-    // }
-
-    // // Grab a connection from the queue
-    // auto addrlen = sizeof(sockaddr);
-    // int connection = accept(sockfd, (struct sockaddr *)&sockaddr, (socklen_t *)&addrlen);
-    // if (connection < 0)
-    // {
-    //     std::cout << "Failed to grab connection. errno: " << errno << std::endl;
-    //     exit(EXIT_FAILURE);
-    // }
-
-    // // Read from the connection
-    // char buffer[100];
-    // auto bytesRead = read(connection, buffer, 100);
-    // std::cout << "The message was: " << buffer;
-
-    // // Send a message to the connection
-    // std::string response = "Good talking to you\n";
-    // send(connection, response.c_str(), response.size(), 0);
-
-    // // Close the connections
-    // close(connection);
-    // close(sockfd);
+        {
+            std::lock_guard<std::mutex> lock_guard(this->mcast_msg_q_mutex);
+            this->mcast_msg_q.push(dummy_msg);
+        }
+        Logger::log(LogLevel::DEBUG, "Put a mcast msg");
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
 
     return 0;
 }
 
-int DC_Server::handle_mcast_msg()
+int DC_Server::thread_handle_mcast_msg()
 {
     while (true)
     {
         std::string in_msg;
+        this->mcast_msg_q_mutex.lock();
+        if (!this->mcast_msg_q.empty())
         {
-            std::lock_guard<std::mutex> lock_guard(this->mcast_msg_q_mutex);
-            if (!this->mcast_msg_q.empty())
-            {
-                in_msg = this->mcast_msg_q.front();
-                this->mcast_msg_q.pop();
-            }
-            else
-            {
-                continue;
-            }
+            in_msg = this->mcast_msg_q.front();
+            this->mcast_msg_q.pop();
+            this->mcast_msg_q_mutex.unlock();
+            Logger::log(LogLevel::DEBUG, "Received a mcast msg");
+        }
+        else
+        {
+            this->mcast_msg_q_mutex.unlock();
+            Logger::log(LogLevel::DEBUG, "mcast msg queue is empty");
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            continue;
         }
 
         capsule::CapsulePDU in_dc;
@@ -143,16 +114,16 @@ int DC_Server::handle_mcast_msg()
 
         // find its parent in the chain
         capsule::CapsulePDU unused_dc;
-        bool sucess = storage.get(in_dc.prevhash(), &unused_dc);
-        if (!sucess && (in_dc.prevhash() != "init"))
+        bool success = storage.get(in_dc.prevhash(), &unused_dc);
+        if (!success && (in_dc.prevhash() != "init"))
         {
             Logger::log(LogLevel::WARNING, "DataCapsule Record's prevHash not found, skipped. PrevHash: " + in_dc.prevhash());
             continue;
         }
 
         // Append the record to the chain
-        sucess = storage.put(in_dc.hash(), &in_dc);
-        if (!sucess)
+        success = storage.put(in_dc.hash(), &in_dc);
+        if (!success)
         {
             Logger::log(LogLevel::WARNING, "Append DataCapsule FAILED, skipped. Hash: " + in_dc.hash());
             continue;
@@ -164,32 +135,20 @@ int DC_Server::handle_mcast_msg()
         ack_dc.set_hash(in_dc.hash());
         sign_dc(&ack_dc, this->signing_key);
 
-        {
-            std::lock_guard<std::mutex> lock_guard(this->ack_q_mutex);
-            this->ack_q.emplace(ack_dc);
-        }
+        // Todo: send ack_dc to leader
+
     }
     return 0;
 }
 
-int DC_Server::send_ack_to_leader()
+int DC_Server::thread_leader_handle_ack()
 {
-    while (true)
-    {
-        capsule::CapsulePDU in_ack_dc;
-        {
-            std::lock_guard<std::mutex> lock_guard(this->ack_q_mutex);
-            if (!this->ack_q.empty())
-            {
-                in_ack_dc = this->ack_q.front();
-                this->ack_q.pop();
-            }
-            else
-            {
-                continue;
-            }
-        }
-
-        // Todo: send to leader
-    }
+    /*
+    Leader Ack Handling:
+    1. Listen for acks from followers
+    2. Verify ack signature
+    3. Store in a on-memory hashtable
+    4. When a threshold of acks is reached, send threshold signature back to client
+    */
+    return 0;
 }

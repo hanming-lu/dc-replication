@@ -1,17 +1,10 @@
-#include <cassert>
 #include <cstdlib>
-#include <iostream>
-#include <netinet/in.h>
 #include <string>
-#include <sys/socket.h>
+#include <thread>
 #include <unistd.h>
-#include <zmq.hpp>
 
 #include "config.h"
-#include "capsule.pb.h"
-#include "crypto_util.hpp"
 #include "dc_server.hpp"
-#include "storage.hpp"
 #include "util/logging.hpp"
 
 /* Admin Server */
@@ -39,9 +32,6 @@ int thread_dc_server(int64_t server_id)
     // DC Server Setup
     dc_server->dc_server_setup();
 
-    // Leader Ack Handle (v2 Todo)
-    dc_server->dc_server_leader_run();
-
     // Run DC Server
     dc_server->dc_server_run();
 
@@ -57,10 +47,16 @@ int main(int argc, char *argv[])
     1. start admin server thread
     2. start dc server threads
     */
+    std::vector<std::thread> server_threads;
     for (int64_t id = INIT_DC_SERVER_ID; id < TOTAL_DC_SERVER + INIT_DC_SERVER_ID; id++)
     {
-        thread_dc_server(id);
+        server_threads.push_back(std::thread(thread_dc_server, id));
     }
 
+    // Wait for all server threads to finish
+    for (auto &t : server_threads)
+    {
+        t.join();
+    }
     return 0;
 }
