@@ -3,7 +3,8 @@
 
 #define DEBUG_MODE false
 
-#define TOTAL_DATA_SERVER 3
+#define INIT_DC_SERVER_ID 10000
+#define TOTAL_DC_SERVER 3
 #define WRITE_THRESHOLD 2
 
 #endif // __CONFIG_H

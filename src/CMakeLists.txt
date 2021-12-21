@@ -17,6 +17,7 @@ set(source_files
     crypto_util.hpp crypto_util.cc
     util/logging.hpp util/logging.cc
     storage.hpp storage.cc
+    dc_server.hpp dc_server.cc 
 )
 
 # Protobuf
