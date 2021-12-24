@@ -24,9 +24,11 @@ void Comm::run_leader_dc_server_handle_ack()
     zmq::socket_t socket_recv_acks(context, ZMQ_PULL);
     socket_recv_acks.bind("tcp://*:" + std::to_string(NET_LEADER_DC_SERVER_RECV_ACK_PORT));
 
-    // Todo (integrate): use multicast to send ack?
-    // zmq::socket_t socket_send(context, ZMQ_PUSH);
-    // socket_send.connect("tcp://" + m_seed_server_ip + ":" + m_seed_server_mcast_port);
+#if INTEGRATED_MODE == true
+    // use multicast to send ack
+    zmq::socket_t socket_send(context, ZMQ_PUSH);
+    socket_send.connect("tcp://" + m_seed_server_ip + ":" + m_seed_server_mcast_port);
+#endif
 
     // poll ack messages
     std::vector<zmq::pollitem_t> pollitems = {
@@ -52,8 +54,10 @@ void Comm::run_leader_dc_server_handle_ack()
             if (this->ack_map[in_ack_dc.hash()] == WRITE_THRESHOLD)
             {
                 Logger::log(LogLevel::INFO, "[LEADER DC SERVER] Write threshold reached for hash: " + in_ack_dc.hash());
-                // Todo (integrate): use multicast to send ack?
-                // this->send_string(in_msg, socket_send);
+#if INTEGRATED_MODE == true
+                // use multicast to send ack
+                this->send_string(in_msg, &socket_send);
+#endif
             }
         }
     }
@@ -63,12 +67,15 @@ void Comm::run_dc_server_listen_mcast()
 {
     zmq::context_t context(1);
 
-    // Todo (integrate): to receive mcast msg from mcast server
+    // to receive mcast msg from mcast server
     zmq::socket_t socket_from_mcast(context, ZMQ_PULL);
     socket_from_mcast.bind("tcp://*:" + m_port);
-    // zmq::socket_t socket_join(context, ZMQ_PUSH);
-    // socket_join.connect("tcp://" + m_seed_server_ip + ":" + m_seed_server_join_port);
-    // this->send_string(m_addr, &socket_join);
+
+#if INTEGRATED_MODE == true
+    zmq::socket_t socket_join(context, ZMQ_PUSH);
+    socket_join.connect("tcp://" + m_seed_server_ip + ":" + m_seed_server_join_port);
+    this->send_string(m_addr, &socket_join);
+#endif
 
     // poll for new messages
     std::vector<zmq::pollitem_t> pollitems = {

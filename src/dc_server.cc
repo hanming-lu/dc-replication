@@ -67,9 +67,9 @@ int DC_Server::thread_listen_mcast()
     1. Receive a mcast msg from network
     2. add it to mcast_q
     */
-    Logger::log(LogLevel::INFO, "thread_listen_mcast() running.");
+    Logger::log(LogLevel::INFO, "thread_listen_mcast() running, dc server #" + std::to_string(this->server_id));
 
-#if TEST_ON == true
+#if INTEGRATED_MODE == false
     std::string cur_prevHash = "init";
     int count = 0;
     for (int i = 0; i < 10; i++)
@@ -105,7 +105,7 @@ int DC_Server::thread_handle_mcast_msg()
     4. Append it to its parent & store on disk
     5. send signed ack to leader
     */
-    Logger::log(LogLevel::INFO, "thread_handle_mcast_msg() running.");
+    Logger::log(LogLevel::INFO, "thread_handle_mcast_msg() running, dc server #" + std::to_string(this->server_id));
 
     while (true)
     {
@@ -156,8 +156,9 @@ int DC_Server::thread_handle_mcast_msg()
 
         // append signed ack to ack_q
         capsule::CapsulePDU ack_dc;
-        ack_dc.set_sender(server_id);
+        ack_dc.set_sender(REPLICATION_ID);
         ack_dc.set_hash(in_dc.hash());
+        ack_dc.set_msgtype(REPLICATION_ACK);
         sign_dc(&ack_dc, this->signing_key);
         std::string ack_msg;
         ack_dc.SerializeToString(&ack_msg);
@@ -170,7 +171,7 @@ int DC_Server::thread_handle_mcast_msg()
 
 int DC_Server::thread_send_ack_to_leader()
 {
-    Logger::log(LogLevel::INFO, "thread_send_ack_to_leader() running.");
+    Logger::log(LogLevel::INFO, "thread_send_ack_to_leader() running, dc server #" + std::to_string(this->server_id));
     Comm comm = Comm(NET_DC_SERVER_IP, this->server_id, this);
     comm.run_dc_server_send_ack_to_leader();
 
@@ -186,7 +187,7 @@ int DC_Server::thread_leader_handle_ack()
     3. Store in a on-memory hashtable
     4. When a threshold of acks is reached, send threshold signature back to client
     */
-    Logger::log(LogLevel::INFO, "thread_leader_handle_ack() running.");
+    Logger::log(LogLevel::INFO, "thread_leader_handle_ack() running, dc server #" + std::to_string(this->server_id));
     Comm comm = Comm(NET_DC_SERVER_IP, this->server_id, this);
     comm.run_leader_dc_server_handle_ack();
 
