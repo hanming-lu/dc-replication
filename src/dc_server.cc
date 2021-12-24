@@ -4,6 +4,8 @@
 #include <zmq.hpp>
 
 #include "capsule.pb.h"
+#include "comm.hpp"
+#include "config.h"
 #include "crypto_util.hpp"
 #include "dc_server.hpp"
 #include "storage.hpp"
@@ -11,8 +13,10 @@
 
 DC_Server::DC_Server(const int64_t server_id,
                      const std::string storage_path) : server_id(server_id), storage(Storage(storage_path))
+// initiate on-disk storage
 {
-    // initiate on-disk storage
+    // v2 Todo: select the first server as leader for now
+    this->is_leader = (server_id == INIT_DC_SERVER_ID) ? true : false;
 }
 
 int DC_Server::dc_server_setup()
@@ -22,7 +26,7 @@ int DC_Server::dc_server_setup()
     1. Leader election (v2 Todo)
     2. Register with admin (v2 Todo)
     2.1 Get Leader's address from admin (v2 Todo)
-    3. Register with multicast tree (v2 Todo)
+    3. Register with multicast tree (integration)
     */
 
     return 0;
@@ -30,27 +34,21 @@ int DC_Server::dc_server_setup()
 
 int DC_Server::dc_server_run()
 {
-    /*
-    DC Server Handling:
-    1. Receive a mcast msg (i.e. a record)
-    2. Decrypt (if needed)
-    2. Recompute its hash & verify signature
-    3. Find its parent using prevHash
-    4. Append it to its parent & store on disk
-    5. send signed ack to leader
-    */
-
     std::vector<std::thread> task_threads;
 
-    // thread to receive msg from mcast
-    task_threads.push_back(std::thread(&DC_Server::thread_listen_mcast, this));
-    // thread to handle msg from mcast, generate ack
-    task_threads.push_back(std::thread(&DC_Server::thread_handle_mcast_msg, this));
     // thread to start leader ack handling
     if (this->is_leader)
     {
         task_threads.push_back(std::thread(&DC_Server::thread_leader_handle_ack, this));
     }
+    // Let leader get ready for DC server connections
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // thread to receive msg from mcast
+    task_threads.push_back(std::thread(&DC_Server::thread_listen_mcast, this));
+    // thread to handle msg from mcast, generate ack
+    task_threads.push_back(std::thread(&DC_Server::thread_handle_mcast_msg, this));
+    // thread to send acks to leader
+    task_threads.push_back(std::thread(&DC_Server::thread_send_ack_to_leader, this));
 
     // Wait for all tasks to finish
     for (auto &t : task_threads)
@@ -63,43 +61,64 @@ int DC_Server::dc_server_run()
 
 int DC_Server::thread_listen_mcast()
 {
-    while (true)
+    /*
+    DC Server Listen Multicast:
+    While true:
+    1. Receive a mcast msg from network
+    2. add it to mcast_q
+    */
+    Logger::log(LogLevel::INFO, "thread_listen_mcast() running.");
+
+#if TEST_ON == true
+    std::string cur_prevHash = "init";
+    int count = 0;
+    for (int i = 0; i < 10; i++)
     {
         capsule::CapsulePDU dummy_dc;
-        dummy_dc.set_prevhash("init");
+        dummy_dc.set_prevhash(cur_prevHash);
+        cur_prevHash = std::to_string(count++);
+        dummy_dc.set_hash(cur_prevHash);
         std::string dummy_msg;
         dummy_dc.SerializeToString(&dummy_msg);
+        this->mcast_q_enqueue(dummy_msg);
 
-        {
-            std::lock_guard<std::mutex> lock_guard(this->mcast_msg_q_mutex);
-            this->mcast_msg_q.push(dummy_msg);
-        }
         Logger::log(LogLevel::DEBUG, "Put a mcast msg");
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+#endif
+
+    Comm comm = Comm(NET_DC_SERVER_IP, this->server_id, this);
+    comm.run_dc_server_listen_mcast();
 
     return 0;
 }
 
 int DC_Server::thread_handle_mcast_msg()
 {
+    /*
+    DC Server Handling:
+    While true:
+    1. get a mcast msg from mcast_q
+    2. Decrypt (if needed)
+    2. Recompute its hash & verify signature
+    3. Find its parent using prevHash
+    4. Append it to its parent & store on disk
+    5. send signed ack to leader
+    */
+    Logger::log(LogLevel::INFO, "thread_handle_mcast_msg() running.");
+
     while (true)
     {
-        std::string in_msg;
-        this->mcast_msg_q_mutex.lock();
-        if (!this->mcast_msg_q.empty())
+        std::string in_msg = mcast_q_dequeue();
+        if (in_msg == "")
         {
-            in_msg = this->mcast_msg_q.front();
-            this->mcast_msg_q.pop();
-            this->mcast_msg_q_mutex.unlock();
-            Logger::log(LogLevel::DEBUG, "Received a mcast msg");
-        }
-        else
-        {
-            this->mcast_msg_q_mutex.unlock();
             Logger::log(LogLevel::DEBUG, "mcast msg queue is empty");
             std::this_thread::sleep_for(std::chrono::seconds(1));
             continue;
+        }
+        else
+        {
+            Logger::log(LogLevel::DEBUG, "Received a mcast msg: " + in_msg);
         }
 
         capsule::CapsulePDU in_dc;
@@ -110,6 +129,8 @@ int DC_Server::thread_handle_mcast_msg()
         {
             Logger::log(LogLevel::ERROR, "DataCapsule Record Verification Failed. Hash: " + in_dc.hash());
             continue;
+        } else {
+            Logger::log(LogLevel::DEBUG, "DataCapsule Record Verification Successful. Hash: " + in_dc.hash());
         }
 
         // find its parent in the chain
@@ -119,6 +140,8 @@ int DC_Server::thread_handle_mcast_msg()
         {
             Logger::log(LogLevel::WARNING, "DataCapsule Record's prevHash not found, skipped. PrevHash: " + in_dc.prevhash());
             continue;
+        } else {
+            Logger::log(LogLevel::DEBUG, "Found prevHash for Hash: " + in_dc.hash());
         }
 
         // Append the record to the chain
@@ -127,6 +150,8 @@ int DC_Server::thread_handle_mcast_msg()
         {
             Logger::log(LogLevel::WARNING, "Append DataCapsule FAILED, skipped. Hash: " + in_dc.hash());
             continue;
+        } else {
+            Logger::log(LogLevel::DEBUG, "Successfully appended Hash: " + in_dc.hash());
         }
 
         // append signed ack to ack_q
@@ -134,10 +159,21 @@ int DC_Server::thread_handle_mcast_msg()
         ack_dc.set_sender(server_id);
         ack_dc.set_hash(in_dc.hash());
         sign_dc(&ack_dc, this->signing_key);
+        std::string ack_msg;
+        ack_dc.SerializeToString(&ack_msg);
 
-        // Todo: send ack_dc to leader
-
+        // enqueue ack_msg
+        this->ack_q_enqueue(ack_msg);
     }
+    return 0;
+}
+
+int DC_Server::thread_send_ack_to_leader()
+{
+    Logger::log(LogLevel::INFO, "thread_send_ack_to_leader() running.");
+    Comm comm = Comm(NET_DC_SERVER_IP, this->server_id, this);
+    comm.run_dc_server_send_ack_to_leader();
+
     return 0;
 }
 
@@ -150,5 +186,45 @@ int DC_Server::thread_leader_handle_ack()
     3. Store in a on-memory hashtable
     4. When a threshold of acks is reached, send threshold signature back to client
     */
+    Logger::log(LogLevel::INFO, "thread_leader_handle_ack() running.");
+    Comm comm = Comm(NET_DC_SERVER_IP, this->server_id, this);
+    comm.run_leader_dc_server_handle_ack();
+
     return 0;
+}
+
+void DC_Server::mcast_q_enqueue(const std::string& mcast_msg)
+{
+    std::lock_guard<std::mutex> lock_guard(this->mcast_q_mutex);
+    this->mcast_q.push(mcast_msg);
+}
+
+std::string DC_Server::mcast_q_dequeue()
+{
+    std::lock_guard<std::mutex> lock_guard(this->mcast_q_mutex);
+    std::string in_msg = "";
+    if (!this->mcast_q.empty())
+    {
+        in_msg = this->mcast_q.front();
+        this->mcast_q.pop();
+    }
+    return in_msg;
+}
+
+void DC_Server::ack_q_enqueue(const std::string& ack_msg)
+{
+    std::lock_guard<std::mutex> lock_guard(this->ack_q_mutex);
+    this->ack_q.push(ack_msg);
+}
+
+std::string DC_Server::ack_q_dequeue()
+{
+    std::lock_guard<std::mutex> lock_guard(this->ack_q_mutex);
+    std::string out_msg = "";
+    if (!this->ack_q.empty())
+    {
+        out_msg = this->ack_q.front();
+        this->ack_q.pop();
+    }
+    return out_msg;
 }

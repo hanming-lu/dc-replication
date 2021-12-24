@@ -31,7 +31,7 @@ bool Storage::put(const std::string &key, const capsule::CapsulePDU *dc)
 
     if (status.ok())
     {
-        Logger::log(LogLevel::INFO, "[Put] Done, key: " + key + " value: " + serialized_dc);
+        Logger::log(LogLevel::DEBUG, "[Put] Done, key: " + key + " value: " + serialized_dc);
         return true;
     }
     else
@@ -47,7 +47,7 @@ bool Storage::get(const std::string& key, capsule::CapsulePDU* dc) {
     rocksdb::Status status = db->Get(rocksdb::ReadOptions(), key, &serialized_dc);
 
     if (status.ok() && !status.IsNotFound()) {
-        Logger::log(LogLevel::INFO, "[Get] Done, key: " + key + " value: " + serialized_dc);
+        Logger::log(LogLevel::DEBUG, "[Get] Done, key: " + key + " value: " + serialized_dc);
         dc->ParseFromString(serialized_dc);
         return true;
     }

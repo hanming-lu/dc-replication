@@ -25,7 +25,6 @@ int thread_admin_server()
 int thread_dc_server(int64_t server_id)
 {
     // DC Server Init
-    // Todo: run in a new thread
     std::string storage_path = "/tmp/testdb_" + std::to_string(server_id);
     DC_Server *dc_server = new DC_Server(server_id, storage_path);
 
