@@ -9,7 +9,24 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Protobuf
 find_package(Protobuf REQUIRED)
-find_package(cppzmq REQUIRED)
+# find_package(cppzmq REQUIRED)
+
+## load in pkg-config support
+find_package(PkgConfig)
+## use pkg-config to get hints for 0mq locations
+pkg_check_modules(PC_ZeroMQ QUIET zmq)
+
+## use the hint from above to find where 'zmq.hpp' is located
+find_path(ZeroMQ_INCLUDE_DIR
+        NAMES zmq.hpp
+        PATHS ${PC_ZeroMQ_INCLUDE_DIRS}
+        )
+
+## use the hint from about to find the location of libzmq
+find_library(ZeroMQ_LIBRARY
+        NAMES zmq
+        PATHS ${PC_ZeroMQ_LIBRARY_DIRS}
+        )
 
 set(source_files
     main.cc
@@ -32,9 +49,10 @@ add_executable(${PROJECT_NAME} ${source_files} ${PROTO_SRCS} ${PROTO_HDRS})
 # RocksDB
 add_subdirectory(${CMAKE_SOURCE_DIR}/../third_party/rocksdb third_party/rocksdb)
 include_directories(${CMAKE_SOURCE_DIR}/../third_party/rocksdb/include)
+target_include_directories(${PROJECT_NAME} PUBLIC ${ZeroMQ_INCLUDE_DIR})
 
 target_link_libraries(${PROJECT_NAME} PUBLIC
   protobuf::libprotobuf
   rocksdb
-  cppzmq
+  ${ZeroMQ_LIBRARY}
 )
