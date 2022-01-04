@@ -2,7 +2,7 @@
 #define __CONFIG_H
 
 #define DEBUG_MODE false
-#define INTEGRATED_MODE false
+#define INTEGRATED_MODE true
 
 // For leader/follower DC networking
 #define NET_DC_SERVER_IP "localhost"

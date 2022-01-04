@@ -67,7 +67,7 @@ int DC_Server::thread_listen_mcast()
     1. Receive a mcast msg from network
     2. add it to mcast_q
     */
-    Logger::log(LogLevel::INFO, "thread_listen_mcast() running, dc server #" + std::to_string(this->server_id));
+    Logger::log(LogLevel::INFO, "DC Server starts receiving multicast msgs, dc server #" + std::to_string(this->server_id));
 
 #if INTEGRATED_MODE == false
     std::string cur_prevHash = "init";
@@ -105,7 +105,7 @@ int DC_Server::thread_handle_mcast_msg()
     4. Append it to its parent & store on disk
     5. send signed ack to leader
     */
-    Logger::log(LogLevel::INFO, "thread_handle_mcast_msg() running, dc server #" + std::to_string(this->server_id));
+    Logger::log(LogLevel::DEBUG, "thread_handle_mcast_msg() running, dc server #" + std::to_string(this->server_id));
 
     while (true)
     {
@@ -135,11 +135,12 @@ int DC_Server::thread_handle_mcast_msg()
 
         // find its parent in the chain
         capsule::CapsulePDU unused_dc;
+        if (in_dc.prevhash() == "") continue;
         bool success = storage.get(in_dc.prevhash(), &unused_dc);
         if (!success && (in_dc.prevhash() != "init"))
         {
-            Logger::log(LogLevel::WARNING, "DataCapsule Record's prevHash not found, skipped. PrevHash: " + in_dc.prevhash());
-            continue;
+            Logger::log(LogLevel::WARNING, "DataCapsule Record's prevHash not found, but stored anyway. PrevHash: " + in_dc.prevhash());
+            // continue;
         } else {
             Logger::log(LogLevel::DEBUG, "Found prevHash for Hash: " + in_dc.hash());
         }
@@ -156,7 +157,7 @@ int DC_Server::thread_handle_mcast_msg()
 
         // append signed ack to ack_q
         capsule::CapsulePDU ack_dc;
-        ack_dc.set_sender(REPLICATION_ID);
+        ack_dc.set_sender(in_dc.sender());
         ack_dc.set_hash(in_dc.hash());
         ack_dc.set_msgtype(REPLICATION_ACK);
         sign_dc(&ack_dc, this->signing_key);
@@ -171,7 +172,7 @@ int DC_Server::thread_handle_mcast_msg()
 
 int DC_Server::thread_send_ack_to_leader()
 {
-    Logger::log(LogLevel::INFO, "thread_send_ack_to_leader() running, dc server #" + std::to_string(this->server_id));
+    Logger::log(LogLevel::DEBUG, "thread_send_ack_to_leader() running, dc server #" + std::to_string(this->server_id));
     Comm comm = Comm(NET_DC_SERVER_IP, this->server_id, this);
     comm.run_dc_server_send_ack_to_leader();
 
@@ -187,7 +188,7 @@ int DC_Server::thread_leader_handle_ack()
     3. Store in a on-memory hashtable
     4. When a threshold of acks is reached, send threshold signature back to client
     */
-    Logger::log(LogLevel::INFO, "thread_leader_handle_ack() running, dc server #" + std::to_string(this->server_id));
+    Logger::log(LogLevel::INFO, "Leader DC Server starts receiving acks, dc server #" + std::to_string(this->server_id));
     Comm comm = Comm(NET_DC_SERVER_IP, this->server_id, this);
     comm.run_leader_dc_server_handle_ack();
 

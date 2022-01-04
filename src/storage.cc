@@ -53,7 +53,7 @@ bool Storage::get(const std::string& key, capsule::CapsulePDU* dc) {
     }
     else if (status.IsNotFound())
     {
-        Logger::log(LogLevel::WARNING, "[Get] Key does not exist: " + key);
+        Logger::log(LogLevel::DEBUG, "[Get] Key does not exist: " + key);
         return false;
     }
     else 

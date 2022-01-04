@@ -53,7 +53,7 @@ void Comm::run_leader_dc_server_handle_ack()
             // send ack back to client if a threshold is reached
             if (this->ack_map[in_ack_dc.hash()] == WRITE_THRESHOLD)
             {
-                Logger::log(LogLevel::INFO, "[LEADER DC SERVER] Write threshold reached for hash: " + in_ack_dc.hash());
+                Logger::log(LogLevel::DEBUG, "[LEADER DC SERVER] Write threshold reached for hash: " + in_ack_dc.hash());
 #if INTEGRATED_MODE == true
                 // use multicast to send ack
                 this->send_string(in_msg, &socket_send);
@@ -105,7 +105,7 @@ void Comm::run_dc_server_send_ack_to_leader()
     zmq::socket_t socket_send_ack(context, ZMQ_PUSH);
     socket_send_ack.connect("tcp://" + m_leader_dc_server_ip + ":" + m_leader_dc_server_recv_ack_port);
 
-    Logger::log(LogLevel::INFO, "[DC SERVER] Connected to Leader DC Server for acks");
+    Logger::log(LogLevel::DEBUG, "[DC SERVER] Connected to Leader DC Server for acks");
     while (true)
     {
         std::string out_msg = this->m_dc_server->ack_q_dequeue();
