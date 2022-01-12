@@ -46,14 +46,16 @@ void Comm::run_leader_dc_server_handle_ack()
             Logger::log(LogLevel::DEBUG, "[LEADER DC SERVER] Received ack message: " + in_msg);
             capsule::CapsulePDU in_ack_dc;
             in_ack_dc.ParseFromString(in_msg);
+            std::string sender_hash = std::to_string(in_ack_dc.sender()) + in_ack_dc.hash();
 
             // Store to a local unordered_map of acks
-            this->ack_map[in_ack_dc.hash()] += 1;
+            this->ack_map[sender_hash] += 1;
 
             // send ack back to client if a threshold is reached
-            if (this->ack_map[in_ack_dc.hash()] == WRITE_THRESHOLD)
+            if (this->ack_map[sender_hash] == WRITE_THRESHOLD)
             {
-                Logger::log(LogLevel::DEBUG, "[LEADER DC SERVER] Write threshold reached for hash: " + in_ack_dc.hash());
+                Logger::log(LogLevel::DEBUG, "[LEADER DC SERVER] Write threshold reached for hash: " + sender_hash);
+                this->ack_map[sender_hash] = 0;
 #if INTEGRATED_MODE == true
                 // use multicast to send ack
                 this->send_string(in_msg, &socket_send);

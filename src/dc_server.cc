@@ -139,7 +139,7 @@ int DC_Server::thread_handle_mcast_msg()
         bool success = storage.get(in_dc.prevhash(), &unused_dc);
         if (!success && (in_dc.prevhash() != "init"))
         {
-            Logger::log(LogLevel::WARNING, "DataCapsule Record's prevHash not found, but stored anyway. PrevHash: " + in_dc.prevhash());
+            Logger::log(LogLevel::DEBUG, "DataCapsule Record's prevHash not found, but stored anyway. PrevHash: " + in_dc.prevhash());
             // continue;
         } else {
             Logger::log(LogLevel::DEBUG, "Found prevHash for Hash: " + in_dc.hash());
