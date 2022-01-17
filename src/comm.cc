@@ -114,7 +114,7 @@ void Comm::run_dc_server_send_ack_to_leader()
         if (out_msg == "")
         {
             Logger::log(LogLevel::DEBUG, "ack q is empty");
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
             continue;
         }
 
