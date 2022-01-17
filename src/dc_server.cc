@@ -113,7 +113,7 @@ int DC_Server::thread_handle_mcast_msg()
         if (in_msg == "")
         {
             Logger::log(LogLevel::DEBUG, "mcast msg queue is empty");
-            // std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
             continue;
         }
         else
