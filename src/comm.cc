@@ -93,10 +93,14 @@ void Comm::run_dc_server_listen_mcast()
         {
             // Received a msg from mcast
             std::string msg = this->recv_string(&socket_from_mcast);
-            // Put mcast msg to mcast_q
-            this->m_dc_server->mcast_q_enqueue(msg);
+            capsule::CapsulePDU in_dc;
+            in_dc.ParseFromString(msg);
+            if (in_dc.msgtype() != REPLICATION_ACK) {
+                // Put mcast msg to mcast_q
+                this->m_dc_server->mcast_q_enqueue(msg);
 
-            Logger::log(LogLevel::DEBUG, "[DC SERVER] Received & put a mcast message: " + msg);
+                Logger::log(LogLevel::DEBUG, "[DC SERVER] Received & put a mcast message: " + msg);
+            }
         }
     }
 }
