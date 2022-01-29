@@ -59,6 +59,8 @@ void Comm::run_leader_dc_server_handle_ack()
 #if INTEGRATED_MODE == true
                 // use multicast to send ack
                 this->send_string(in_msg, &socket_send);
+#else
+                Logger::log(LogLevel::INFO, "[LEADER DC SERVER] Write threshold reached for hash: " + sender_hash);
 #endif
             }
         }

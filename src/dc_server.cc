@@ -16,7 +16,7 @@ DC_Server::DC_Server(const int64_t server_id,
 // initiate on-disk storage
 {
     // v2 Todo: select the first server as leader for now
-    this->is_leader = (server_id == INIT_DC_SERVER_ID) ? true : false;
+    this->is_leader = (server_id == INIT_DC_SERVER_ID && HAS_LEADER) ? true : false;
 }
 
 int DC_Server::dc_server_setup()
@@ -70,11 +70,13 @@ int DC_Server::thread_listen_mcast()
     Logger::log(LogLevel::INFO, "DC Server starts receiving multicast msgs, dc server #" + std::to_string(this->server_id));
 
 #if INTEGRATED_MODE == false
+    std::this_thread::sleep_for(std::chrono::seconds(10));
     std::string cur_prevHash = "init";
     int count = 0;
     for (int i = 0; i < 10; i++)
     {
         capsule::CapsulePDU dummy_dc;
+        dummy_dc.set_sender(this->server_id);
         dummy_dc.set_prevhash(cur_prevHash);
         cur_prevHash = std::to_string(count++);
         dummy_dc.set_hash(cur_prevHash);
