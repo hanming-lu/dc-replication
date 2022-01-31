@@ -18,6 +18,9 @@ find_package(PkgConfig)
 ## use pkg-config to get hints for 0mq locations
 pkg_check_modules(PC_ZeroMQ QUIET zmq)
 
+# Openssl
+find_package(OpenSSL REQUIRED)
+
 ## use the hint from above to find where 'zmq.hpp' is located
 find_path(ZeroMQ_INCLUDE_DIR
         NAMES zmq.hpp
@@ -33,6 +36,7 @@ find_library(ZeroMQ_LIBRARY
 set(source_files
     main.cc
     config.h
+    crypto.hpp crypto.cc
     crypto_util.hpp crypto_util.cc
     util/logging.hpp util/logging.cc
     storage.hpp storage.cc
@@ -57,4 +61,5 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
   protobuf::libprotobuf
   rocksdb
   ${ZeroMQ_LIBRARY}
+  OpenSSL::SSL OpenSSL::Crypto
 )

@@ -6,13 +6,14 @@
 #include "capsule.pb.h"
 #include "comm.hpp"
 #include "config.h"
+#include "crypto.hpp"
 #include "crypto_util.hpp"
 #include "dc_server.hpp"
 #include "storage.hpp"
 #include "util/logging.hpp"
 
 DC_Server::DC_Server(const int64_t server_id,
-                     const std::string storage_path) : server_id(server_id), storage(Storage(storage_path))
+                     const std::string storage_path) : server_id(server_id), storage(Storage(storage_path)), crypto(Crypto())
 // initiate on-disk storage
 {
     // v2 Todo: select the first server as leader for now
@@ -80,6 +81,7 @@ int DC_Server::thread_listen_mcast()
         dummy_dc.set_prevhash(cur_prevHash);
         cur_prevHash = std::to_string(count++);
         dummy_dc.set_hash(cur_prevHash);
+        sign_dc(&dummy_dc, &this->crypto);
         std::string dummy_msg;
         dummy_dc.SerializeToString(&dummy_msg);
         this->mcast_q_enqueue(dummy_msg);
@@ -126,9 +128,9 @@ int DC_Server::thread_handle_mcast_msg()
         in_dc.ParseFromString(in_msg);
 
         // verify signature
-        if (verify_dc(&in_dc, verifying_key) != true)
+        if (verify_dc(&in_dc, &this->crypto) != true)
         {
-            Logger::log(LogLevel::ERROR, "DataCapsule Record Verification Failed. Hash: " + in_dc.hash());
+            Logger::log(LogLevel::INFO, "DataCapsule Record Verification Failed. Hash: " + in_dc.hash());
             continue;
         } else {
             Logger::log(LogLevel::DEBUG, "DataCapsule Record Verification Successful. Hash: " + in_dc.hash());
@@ -161,7 +163,7 @@ int DC_Server::thread_handle_mcast_msg()
         ack_dc.set_sender(in_dc.sender());
         ack_dc.set_hash(in_dc.hash());
         ack_dc.set_msgtype(REPLICATION_ACK);
-        sign_dc(&ack_dc, this->signing_key);
+        sign_dc(&ack_dc, &this->crypto);
         std::string ack_msg;
         ack_dc.SerializeToString(&ack_msg);
 

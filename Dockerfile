@@ -12,7 +12,8 @@ RUN apt-get update && \
     apt-get install -y protobuf-compiler && \
     apt-get install -y libzmq3-dev && \
     apt-get install -y librocksdb-dev && \
-    apt-get install -y libgflags-dev
+    apt-get install -y libgflags-dev && \
+    apt-get install -y libssl-dev
 
 #install cmake v3.20.4
 ADD https://cmake.org/files/v3.20/cmake-3.20.4-linux-x86_64.sh /cmake-3.20.4-linux-x86_64.sh

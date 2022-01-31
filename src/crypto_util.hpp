@@ -2,11 +2,10 @@
 #define __CRYPTOUTIL_H
 
 #include "capsule.pb.h"
+#include "crypto.hpp"
 
-// Todo: implement
-bool sign_dc(capsule::CapsulePDU *dc, const std::string &signing_key);
+bool sign_dc(capsule::CapsulePDU *dc, Crypto *crypto);
 
-// Todo: use real key's type
-bool verify_dc(const capsule::CapsulePDU *dc, const std::string &verifying_key); 
+bool verify_dc(const capsule::CapsulePDU *dc, Crypto *crypto); 
 
 #endif // __CRYPTOUTIL_H

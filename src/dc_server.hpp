@@ -4,6 +4,8 @@
 #include <mutex>
 #include <queue>
 #include <string>
+
+#include "crypto.hpp"
 #include "storage.hpp"
 
 class DC_Server
@@ -22,10 +24,9 @@ public:
 
 private:
     Storage storage;
+    Crypto crypto;
     int64_t server_id;
     bool is_leader;
-    std::string signing_key = "dummy_signing_key";
-    std::string verifying_key = "dummy_verifying_key";
     std::queue<std::string> mcast_q;
     std::mutex mcast_q_mutex;
     std::queue<std::string> ack_q;

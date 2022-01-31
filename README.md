@@ -14,7 +14,7 @@ docker run -it --rm \
   --net=host \
   -v "${MY_PROJECT}":/opt/my-project \
   -w /opt/my-project \
-  hanmingl/dc-replication:init
+  hanmingl/dc-replication:1.0
 ```
 
 After entering the docker, build and run dcr-server within docker
