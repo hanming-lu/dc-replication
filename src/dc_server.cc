@@ -40,16 +40,17 @@ int DC_Server::dc_server_run()
     // thread to start leader ack handling
     if (this->is_leader)
     {
+        /* Leader DC Server */
         task_threads.push_back(std::thread(&DC_Server::thread_leader_handle_ack, this));
+    } else { 
+        /* DC Server */
+        // thread to receive msg from mcast
+        task_threads.push_back(std::thread(&DC_Server::thread_listen_mcast, this));
+        // thread to handle msg from mcast, generate ack
+        task_threads.push_back(std::thread(&DC_Server::thread_handle_mcast_msg, this));
+        // thread to send acks to leader
+        task_threads.push_back(std::thread(&DC_Server::thread_send_ack_to_leader, this));
     }
-    // Let leader get ready for DC server connections
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    // thread to receive msg from mcast
-    task_threads.push_back(std::thread(&DC_Server::thread_listen_mcast, this));
-    // thread to handle msg from mcast, generate ack
-    task_threads.push_back(std::thread(&DC_Server::thread_handle_mcast_msg, this));
-    // thread to send acks to leader
-    task_threads.push_back(std::thread(&DC_Server::thread_send_ack_to_leader, this));
 
     // Wait for all tasks to finish
     for (auto &t : task_threads)
