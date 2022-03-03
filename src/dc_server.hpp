@@ -27,6 +27,7 @@ private:
     Crypto crypto;
     int64_t server_id;
     bool is_leader;
+    std::unordered_map<std::string, int> unverified_count; // count the number of unverified record before it (inclusive)
     std::queue<std::string> mcast_q;
     std::mutex mcast_q_mutex;
     std::queue<std::string> ack_q;

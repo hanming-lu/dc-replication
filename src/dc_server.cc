@@ -115,31 +115,52 @@ int DC_Server::thread_handle_mcast_msg()
     while (true)
     {
         std::string in_msg = mcast_q_dequeue();
-        if (in_msg == "")
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            continue;
-        }
-        else
-        {
-            Logger::log(LogLevel::DEBUG, "Received a mcast msg: " + in_msg);
-        }
+        if (in_msg == "") continue;
+
+        Logger::log(LogLevel::DEBUG, "Received a mcast msg: " + in_msg);
 
         capsule::CapsulePDU in_dc;
         in_dc.ParseFromString(in_msg);
+        
+        if (in_dc.prevhash() == "") continue;
+        bool to_verify = false;
+
+        // find parent's unverified count
+        // note that unverified_count is not persisted, so valid parent's hash may not be found
+        auto found = unverified_count.find(in_dc.prevhash());
+ 
+        if (found == unverified_count.end() || (found->second + 1) >= VERIFY_SIG_PER_WRITES) {
+            to_verify = true;
+        } else {
+            unverified_count[in_dc.hash()] = found->second + 1;
+        }
 
         // verify signature
-        if (verify_dc(&in_dc, &this->crypto) != true)
-        {
-            Logger::log(LogLevel::INFO, "DataCapsule Record Verification Failed. Hash: " + in_dc.hash());
-            continue;
-        } else {
+        if (to_verify) {
+            if (verify_dc(&in_dc, &this->crypto) != true)
+            {
+                Logger::log(LogLevel::INFO, "DataCapsule Record Verification Failed, but stored anyway. Hash: " + in_dc.hash());
+                // continue;
+            }
+                
             Logger::log(LogLevel::DEBUG, "DataCapsule Record Verification Successful. Hash: " + in_dc.hash());
+
+            // update in_dc's count to 0
+            unverified_count[in_dc.hash()] = 0;
+            // mark chain of parents as verified
+            std::string parent_hash = in_dc.prevhash();
+            capsule::CapsulePDU parent_dc;
+            while (storage.get(parent_hash, &parent_dc))
+            {
+                if (parent_dc.verified()) break;
+                Logger::log(LogLevel::DEBUG, "Marking parent as verified. Parent Hash: " + parent_hash);
+                parent_dc.set_verified(true);
+                parent_hash = parent_dc.prevhash();
+            }
         }
 
         // find its parent in the chain
         capsule::CapsulePDU unused_dc;
-        if (in_dc.prevhash() == "") continue;
         bool success = storage.get(in_dc.prevhash(), &unused_dc);
         if (!success && (in_dc.prevhash() != "init"))
         {
@@ -150,6 +171,7 @@ int DC_Server::thread_handle_mcast_msg()
         }
 
         // Append the record to the chain
+        in_dc.set_verified(to_verify);
         success = storage.put(in_dc.hash(), &in_dc);
         if (!success)
         {
