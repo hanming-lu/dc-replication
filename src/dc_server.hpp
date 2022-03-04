@@ -11,7 +11,8 @@
 class DC_Server
 {
 public:
-    DC_Server(const int64_t server_id, const std::string storage_path);
+    DC_Server(const int64_t server_id, const bool is_leader,
+              const std::string storage_path);
 
     int dc_server_setup();
     int dc_server_run();

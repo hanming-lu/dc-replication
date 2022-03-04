@@ -38,7 +38,7 @@ set(source_files
     config.h
     crypto.hpp crypto.cc
     crypto_util.hpp crypto_util.cc
-    util/logging.hpp util/logging.cc
+    util/logging.hpp util/logging.cc util/utils.hpp
     storage.hpp storage.cc
     dc_server.hpp dc_server.cc
     comm.hpp comm.cc

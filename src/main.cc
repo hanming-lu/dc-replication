@@ -22,11 +22,11 @@ int thread_admin_server()
     return 0;
 }
 
-int thread_dc_server(int64_t server_id)
-{
+int thread_dc_server(int64_t server_id, bool is_leader)
+{    
     // DC Server Init
-    std::string storage_path = "/tmp/testdb_" + std::to_string(server_id);
-    DC_Server *dc_server = new DC_Server(server_id, storage_path);
+    std::string storage_path = "/tmp/db_" + std::to_string(server_id);
+    DC_Server *dc_server = new DC_Server(server_id, is_leader, storage_path);
 
     // DC Server Setup
     dc_server->dc_server_setup();
@@ -47,9 +47,13 @@ int main(int argc, char *argv[])
     2. start dc server threads
     */
     std::vector<std::thread> server_threads;
-    for (int64_t id = INIT_DC_SERVER_ID; id < TOTAL_DC_SERVER + INIT_DC_SERVER_ID; id++)
+    if (HAS_LEADER_LOCAL) {
+        server_threads.push_back(std::thread(thread_dc_server, LEADER_ID_LOCAL, /* is_leader */ true));
+    }
+
+    for (int64_t id = INIT_DC_SERVER_ID; id < LOCAL_DC_SERVER_COUNT + INIT_DC_SERVER_ID; id++)
     {
-        server_threads.push_back(std::thread(thread_dc_server, id));
+        server_threads.push_back(std::thread(thread_dc_server, id, /* is_leader */ false));
     }
 
     // Wait for all server threads to finish

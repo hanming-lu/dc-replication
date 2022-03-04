@@ -3,6 +3,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include <zmq.hpp>
 
 #include "config.h"
@@ -11,7 +12,7 @@
 class Comm
 {
 public:
-    Comm(std::string ip, const int64_t server_id, DC_Server* dc_server);
+    Comm(std::string ip, int64_t server_id, bool is_leader, DC_Server* dc_server);
 
     void run_leader_dc_server_handle_ack();
     void run_dc_server_listen_mcast();
@@ -22,7 +23,7 @@ private:
     std::string m_ip;
     std::string m_port;
     std::string m_addr;
-    std::string m_leader_dc_server_ip = NET_LEADER_DC_SERVER_IP;
+    std::vector<std::string> m_leader_dc_server_addrs;
     std::string m_leader_dc_server_recv_ack_port = std::to_string(NET_LEADER_DC_SERVER_RECV_ACK_PORT);
     std::unordered_map<std::string, int> ack_map;
 

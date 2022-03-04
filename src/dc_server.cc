@@ -13,21 +13,19 @@
 #include "util/logging.hpp"
 
 DC_Server::DC_Server(const int64_t server_id,
-                     const std::string storage_path) : server_id(server_id), storage(Storage(storage_path)), crypto(Crypto())
-// initiate on-disk storage
-{
-    // v2 Todo: select the first server as leader for now
-    this->is_leader = (server_id == INIT_DC_SERVER_ID && HAS_LEADER) ? true : false;
-}
+                     const bool is_leader,
+                     const std::string storage_path) : 
+                     server_id(server_id), 
+                     is_leader(is_leader),
+                     storage(Storage(storage_path)), 
+                     crypto(Crypto()) {}
 
 int DC_Server::dc_server_setup()
 {
     /* 
     Setup:
-    1. Leader election (v2 Todo)
-    2. Register with admin (v2 Todo)
-    2.1 Get Leader's address from admin (v2 Todo)
-    3. Register with multicast tree (integration)
+    1. Register with admin (v2 Todo)
+    1.1 Get Leader's address from admin (v2 Todo)
     */
 
     return 0;
@@ -92,7 +90,7 @@ int DC_Server::thread_listen_mcast()
     }
 #endif
 
-    Comm comm = Comm(NET_DC_SERVER_IP, this->server_id, this);
+    Comm comm = Comm(NET_DC_SERVER_IP, server_id, is_leader, this);
     comm.run_dc_server_listen_mcast();
 
     return 0;
@@ -199,7 +197,7 @@ int DC_Server::thread_handle_mcast_msg()
 int DC_Server::thread_send_ack_to_leader()
 {
     Logger::log(LogLevel::DEBUG, "thread_send_ack_to_leader() running, dc server #" + std::to_string(this->server_id));
-    Comm comm = Comm(NET_DC_SERVER_IP, this->server_id, this);
+    Comm comm = Comm(NET_DC_SERVER_IP, server_id, is_leader, this);
     comm.run_dc_server_send_ack_to_leader();
 
     return 0;
@@ -215,7 +213,7 @@ int DC_Server::thread_leader_handle_ack()
     4. When a threshold of acks is reached, send threshold signature back to client
     */
     Logger::log(LogLevel::INFO, "Leader DC Server starts receiving acks, dc server #" + std::to_string(this->server_id));
-    Comm comm = Comm(NET_DC_SERVER_IP, this->server_id, this);
+    Comm comm = Comm(NET_DC_SERVER_IP, server_id, is_leader, this);
     comm.run_leader_dc_server_handle_ack();
 
     return 0;

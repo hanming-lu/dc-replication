@@ -7,13 +7,29 @@
 #include "capsule.pb.h"
 #include "comm.hpp"
 #include "util/logging.hpp"
+#include "util/utils.hpp"
 
-Comm::Comm(std::string ip, const int64_t server_id, DC_Server *dc_server)
+Comm::Comm(std::string ip, int64_t server_id, bool is_leader, DC_Server *dc_server)
 {
     m_ip = ip;
-    m_port = std::to_string(NET_DC_SERVER_BASE_PORT + server_id);
+    m_port = (is_leader) ? 
+                std::to_string(NET_LEADER_DC_SERVER_RECV_ACK_PORT) : 
+                std::to_string(NET_DC_SERVER_BASE_PORT + server_id);
     m_addr = "tcp://" + m_ip + ":" + m_port;
     m_dc_server = dc_server;
+
+    // initialize leader addrs
+    std::string ips = NET_LEADER_DC_SERVER_IPs;
+    std::string delim = ",";
+    size_t last = 0; 
+    size_t next = 0; 
+    while ((next = ips.find(delim, last)) != std::string::npos) {  
+        m_leader_dc_server_addrs.push_back(ips.substr(last, next-last)+":"+m_leader_dc_server_recv_ack_port);
+        last = next + delim.length(); 
+    }
+    m_leader_dc_server_addrs.push_back(ips.substr(last)+":"+m_leader_dc_server_recv_ack_port);
+
+    Logger::log(LogLevel::DEBUG, "[DC SERVER] m_leader_dc_server_addrs has size: " + std::to_string(m_leader_dc_server_addrs.size()));
 }
 
 void Comm::run_leader_dc_server_handle_ack()
@@ -110,20 +126,32 @@ void Comm::run_dc_server_listen_mcast()
 void Comm::run_dc_server_send_ack_to_leader()
 {
     zmq::context_t context(1);
-    zmq::socket_t socket_send_ack(context, ZMQ_PUSH);
-    socket_send_ack.connect("tcp://" + m_leader_dc_server_ip + ":" + m_leader_dc_server_recv_ack_port);
+    std::vector<zmq::socket_t*> socket_send_ack_l;
+    for (auto &addr: m_leader_dc_server_addrs) {
+        zmq::socket_t *socket_send_ack = new zmq::socket_t(context, ZMQ_PUSH);
+        socket_send_ack->connect("tcp://" + addr);
+        socket_send_ack_l.push_back(socket_send_ack);
+    }
+    // zmq::socket_t socket_send_ack(context, ZMQ_PUSH);
+    // socket_send_ack.connect("tcp://" + m_leader_dc_server_ip + ":" + m_leader_dc_server_recv_ack_port);
 
     Logger::log(LogLevel::DEBUG, "[DC SERVER] Connected to Leader DC Server for acks");
     while (true)
     {
         std::string out_msg = this->m_dc_server->ack_q_dequeue();
-        if (out_msg == "")
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            continue;
-        }
+        if (out_msg == "") continue;
 
-        this->send_string(out_msg, &socket_send_ack);
-        Logger::log(LogLevel::DEBUG, "[DC SERVER] Sent an ack msg: " + out_msg);
+        capsule::CapsulePDU out_ack_dc;
+        out_ack_dc.ParseFromString(out_msg);
+
+        int send_ack_to_leader_num = Utils::hashToInt(out_ack_dc.hash(), socket_send_ack_l.size());
+
+        this->send_string(out_msg, socket_send_ack_l[send_ack_to_leader_num]);
+        Logger::log(LogLevel::DEBUG, "[DC SERVER] Sent an ack msg: " + out_msg + 
+                                     " to leader_num: " + std::to_string(send_ack_to_leader_num));
+    }
+
+    for (auto &socket: socket_send_ack_l) {
+        delete socket;
     }
 }
