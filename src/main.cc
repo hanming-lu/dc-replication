@@ -8,7 +8,7 @@
 #include "util/logging.hpp"
 
 int thread_dc_server(int64_t server_id, bool is_leader)
-{    
+{
     // DC Server Init
     std::string storage_path = "/tmp/db_" + std::to_string(server_id);
     DC_Server *dc_server = new DC_Server(server_id, is_leader, storage_path);
@@ -29,7 +29,8 @@ int main(int argc, char *argv[])
     2. start dc server threads
     */
     std::vector<std::thread> server_threads;
-    if (HAS_LEADER_LOCAL) {
+    if (HAS_LEADER_LOCAL)
+    {
         server_threads.push_back(std::thread(thread_dc_server, LEADER_ID_LOCAL, /* is_leader */ true));
     }
 

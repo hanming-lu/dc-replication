@@ -19,9 +19,7 @@ Comm::Comm(std::string ip, int64_t server_id, bool is_leader, DC_Server *dc_serv
     : m_context(1)
 {
     m_ip = ip;
-    m_port = (is_leader) ? 
-                std::to_string(NET_LEADER_DC_SERVER_RECV_ACK_PORT) : 
-                std::to_string(NET_DC_SERVER_BASE_PORT + server_id);
+    m_port = (is_leader) ? std::to_string(NET_LEADER_DC_SERVER_RECV_ACK_PORT) : std::to_string(NET_DC_SERVER_BASE_PORT + server_id);
     m_addr = "tcp://" + m_ip + ":" + m_port;
     m_pairing_port = std::to_string(NET_DC_SERVER_PAIRING_BASE_PORT + server_id);
     m_pairing_addr = m_ip + ":" + m_pairing_port;
@@ -30,13 +28,14 @@ Comm::Comm(std::string ip, int64_t server_id, bool is_leader, DC_Server *dc_serv
     // initialize leader addrs
     std::string leader_ips = NET_LEADER_DC_SERVER_IPs;
     std::string delim = ",";
-    size_t last = 0; 
-    size_t next = 0; 
-    while ((next = leader_ips.find(delim, last)) != std::string::npos) {  
-        m_leader_dc_server_addrs.push_back(leader_ips.substr(last, next-last)+":"+m_leader_dc_server_recv_ack_port);
-        last = next + delim.length(); 
+    size_t last = 0;
+    size_t next = 0;
+    while ((next = leader_ips.find(delim, last)) != std::string::npos)
+    {
+        m_leader_dc_server_addrs.push_back(leader_ips.substr(last, next - last) + ":" + m_leader_dc_server_recv_ack_port);
+        last = next + delim.length();
     }
-    m_leader_dc_server_addrs.push_back(leader_ips.substr(last)+":"+m_leader_dc_server_recv_ack_port);
+    m_leader_dc_server_addrs.push_back(leader_ips.substr(last) + ":" + m_leader_dc_server_recv_ack_port);
 
     Logger::log(LogLevel::DEBUG, "[DC SERVER] Number of collectors: " + std::to_string(m_leader_dc_server_addrs.size()));
 
@@ -44,26 +43,30 @@ Comm::Comm(std::string ip, int64_t server_id, bool is_leader, DC_Server *dc_serv
     std::string pair_ips = NET_PAIRING_DC_SERVER_IPs;
     std::string ip_delim = ",";
     std::string count_delim = ":";
-    std::vector<std::pair<std::string, int>> pair_ip_count;
-    last = 0; 
-    next = 0; 
-    while ((next = pair_ips.find(ip_delim, last)) != std::string::npos) {  
-        std::string ip_count = pair_ips.substr(last, next-last);
+    std::vector<std::pair<std::string, int> > pair_ip_count;
+    last = 0;
+    next = 0;
+    while ((next = pair_ips.find(ip_delim, last)) != std::string::npos)
+    {
+        std::string ip_count = pair_ips.substr(last, next - last);
         int pos = ip_count.find(count_delim);
-        pair_ip_count.push_back(std::make_pair(ip_count.substr(0, pos), std::stoi(ip_count.substr(pos+1))));
-        last = next + ip_delim.length(); 
+        pair_ip_count.push_back(std::make_pair(ip_count.substr(0, pos), std::stoi(ip_count.substr(pos + 1))));
+        last = next + ip_delim.length();
     }
     std::string ip_count = pair_ips.substr(last);
     int pos = ip_count.find(count_delim);
-    pair_ip_count.push_back(std::make_pair(ip_count.substr(0, pos), std::stoi(ip_count.substr(pos+1))));
-    
-    for (auto &p: pair_ip_count) {
-        for (int i = INIT_DC_SERVER_ID; i < p.second + INIT_DC_SERVER_ID; i++) {
-            std::string pairing_addr = p.first+":"+std::to_string(NET_DC_SERVER_PAIRING_BASE_PORT+i);
-            if (pairing_addr == m_pairing_addr) continue;
+    pair_ip_count.push_back(std::make_pair(ip_count.substr(0, pos), std::stoi(ip_count.substr(pos + 1))));
+
+    for (auto &p : pair_ip_count)
+    {
+        for (int i = INIT_DC_SERVER_ID; i < p.second + INIT_DC_SERVER_ID; i++)
+        {
+            std::string pairing_addr = p.first + ":" + std::to_string(NET_DC_SERVER_PAIRING_BASE_PORT + i);
+            if (pairing_addr == m_pairing_addr)
+                continue;
             zmq::socket_t *socket_send_pair_msg = new zmq::socket_t(m_context, ZMQ_PUSH);
             socket_send_pair_msg->connect("tcp://" + pairing_addr);
-            
+
             m_pair_dc_server_sockets.emplace(pairing_addr, socket_send_pair_msg);
         }
     }
@@ -148,7 +151,8 @@ void Comm::run_dc_server_listen_mcast()
             std::string msg = this->recv_string(&socket_from_mcast);
             capsule::CapsulePDU in_dc;
             in_dc.ParseFromString(msg);
-            if (in_dc.msgtype() != REPLICATION_ACK) {
+            if (in_dc.msgtype() != REPLICATION_ACK)
+            {
                 // Put mcast msg to mcast_q
                 this->m_dc_server->mcast_q_enqueue(msg);
 
@@ -160,8 +164,9 @@ void Comm::run_dc_server_listen_mcast()
 
 void Comm::run_dc_server_send_ack_to_leader()
 {
-    std::vector<zmq::socket_t*> socket_send_ack_l;
-    for (auto &addr: m_leader_dc_server_addrs) {
+    std::vector<zmq::socket_t *> socket_send_ack_l;
+    for (auto &addr : m_leader_dc_server_addrs)
+    {
         zmq::socket_t *socket_send_ack = new zmq::socket_t(m_context, ZMQ_PUSH);
         socket_send_ack->connect("tcp://" + addr);
         socket_send_ack_l.push_back(socket_send_ack);
@@ -173,7 +178,8 @@ void Comm::run_dc_server_send_ack_to_leader()
     while (true)
     {
         std::string out_msg = this->m_dc_server->ack_q_dequeue();
-        if (out_msg == "") continue;
+        if (out_msg == "")
+            continue;
 
         capsule::CapsulePDU out_ack_dc;
         out_ack_dc.ParseFromString(out_msg);
@@ -181,16 +187,17 @@ void Comm::run_dc_server_send_ack_to_leader()
         int send_ack_to_leader_num = Utils::hashToInt(out_ack_dc.hash(), socket_send_ack_l.size());
 
         this->send_string(out_msg, socket_send_ack_l[send_ack_to_leader_num]);
-        Logger::log(LogLevel::DEBUG, "[DC SERVER] Sent an ack msg: " + out_msg + 
-                                     " to leader_num: " + std::to_string(send_ack_to_leader_num));
+        Logger::log(LogLevel::DEBUG, "[DC SERVER] Sent an ack msg: " + out_msg +
+                                         " to leader_num: " + std::to_string(send_ack_to_leader_num));
     }
 
-    for (auto &socket: socket_send_ack_l) {
+    for (auto &socket : socket_send_ack_l)
+    {
         delete socket;
     }
 }
 
-void Comm::run_dc_server_listen_pairing_msg() 
+void Comm::run_dc_server_listen_pairing_msg()
 {
     // to receive pairing request/response
     zmq::socket_t socket_from_pairing(m_context, ZMQ_PULL);
@@ -203,7 +210,7 @@ void Comm::run_dc_server_listen_pairing_msg()
 
     Logger::log(LogLevel::INFO, "[DC Pairing] start listening to pairing requests/responses: " + m_pairing_addr);
     while (true)
-    {   
+    {
         zmq::poll(pollitems.data(), pollitems.size(), 0);
 
         if (pollitems[0].revents & ZMQ_POLLIN)
@@ -218,40 +225,41 @@ void Comm::run_dc_server_listen_pairing_msg()
     }
 }
 
-void Comm::send_dc_server_pairing_request(std::unordered_set<std::string> &sources, 
-    std::unordered_set<std::string> &sinks)
+void Comm::send_dc_server_pairing_request(std::unordered_set<std::string> &sources,
+                                          std::unordered_set<std::string> &sinks)
 {
     capsule::PairingWrapperMsg pair_msg;
     capsule::PairingRequest pair_req;
     std::string pair_msg_s;
 
-    if (m_pair_dc_server_sockets.size() < 1) return;
+    if (m_pair_dc_server_sockets.size() < 1)
+        return;
 
     // serialize sources, sinks, reply_addr to PairingRequest
     *pair_req.mutable_sources() = {sources.begin(), sources.end()};
     *pair_req.mutable_sinks() = {sinks.begin(), sinks.end()};
     pair_req.set_replyaddr(m_pairing_addr);
-    
+
     // apply wrapper
     *pair_msg.mutable_request() = pair_req;
     pair_msg.SerializeToString(&pair_msg_s);
 
     // send to a randomly selected pairing server
     auto it = std::next(
-        std::begin(m_pair_dc_server_sockets), 
-        rand()%m_pair_dc_server_sockets.size());
+        std::begin(m_pair_dc_server_sockets),
+        rand() % m_pair_dc_server_sockets.size());
 
     this->send_string(pair_msg_s, it->second);
-    Logger::log(LogLevel::DEBUG, "[DC Pairing] Sent a pairing request from: " + m_pairing_addr + 
-                                    " to: " + it->first + ". Sources size: " + std::to_string(sources.size()) + 
-                                    " Sinks size: " + std::to_string(sinks.size()));
+    Logger::log(LogLevel::DEBUG, "[DC Pairing] Sent a pairing request from: " + m_pairing_addr +
+                                     " to: " + it->first + ". Sources size: " + std::to_string(sources.size()) +
+                                     " Sinks size: " + std::to_string(sinks.size()));
 
     return;
 }
 
 void Comm::send_dc_server_pairing_response(
-    std::vector<capsule::CapsulePDU> &records_to_return, 
-    const std::string& reply_addr) 
+    std::vector<capsule::CapsulePDU> &records_to_return,
+    const std::string &reply_addr)
 {
 
     // wrap PairingResponse in PairingWrapperMsg
@@ -266,7 +274,7 @@ void Comm::send_dc_server_pairing_response(
     if (m_pair_dc_server_sockets.find(reply_addr) == m_pair_dc_server_sockets.end())
     {
         zmq::socket_t *socket_send_pair_msg = new zmq::socket_t(m_context, ZMQ_PUSH);
-        socket_send_pair_msg->connect("tcp://" + reply_addr);        
+        socket_send_pair_msg->connect("tcp://" + reply_addr);
         m_pair_dc_server_sockets.emplace(reply_addr, socket_send_pair_msg);
 
         Logger::log(LogLevel::DEBUG, "[DC Pairing] Added connection for pairing to addr: " + reply_addr);
@@ -275,8 +283,8 @@ void Comm::send_dc_server_pairing_response(
     // send records to reply_addr
     auto it = m_pair_dc_server_sockets.find(reply_addr);
     this->send_string(pair_msg_s, it->second);
-    Logger::log(LogLevel::DEBUG, "[DC Pairing] Sent a pairing response: " + pair_msg_s + 
-                                    " from: " + m_pairing_addr + " to: " + reply_addr);
+    Logger::log(LogLevel::DEBUG, "[DC Pairing] Sent a pairing response: " + pair_msg_s +
+                                     " from: " + m_pairing_addr + " to: " + reply_addr);
 
     return;
 }

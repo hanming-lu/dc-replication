@@ -7,12 +7,12 @@
 namespace Utils
 {
 
-int hashToInt(const std::string &hash_s, const int total_num) 
-{
-    std::hash<std::string> hasher;
-    int hashed = std::abs((int) hasher(hash_s));
-    return hashed % total_num;
-}
+    int hashToInt(const std::string &hash_s, const int total_num)
+    {
+        std::hash<std::string> hasher;
+        int hashed = std::abs((int)hasher(hash_s));
+        return hashed % total_num;
+    }
 
 };
 

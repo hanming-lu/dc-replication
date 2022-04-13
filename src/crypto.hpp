@@ -4,7 +4,8 @@
 #include <openssl/evp.h>
 #include <string>
 
-class Crypto {
+class Crypto
+{
 public:
     Crypto();
     ~Crypto();
@@ -14,7 +15,7 @@ public:
 
 private:
     EVP_PKEY *pkey = NULL;
-    EVP_MD_CTX* md = NULL;
+    EVP_MD_CTX *md = NULL;
 };
 
 #endif // __CRYPTO_H

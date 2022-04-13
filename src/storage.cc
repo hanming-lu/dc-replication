@@ -10,7 +10,7 @@
 #include "storage.hpp"
 #include "util/logging.hpp"
 
-Storage::Storage(const std::string& db_path)
+Storage::Storage(const std::string &db_path)
 {
     rocksdb::Options options;
     options.create_if_missing = true;
@@ -19,7 +19,7 @@ Storage::Storage(const std::string& db_path)
     {
         DestroyDB(db_path, options);
     }
-    
+
     rocksdb::Status status =
         rocksdb::DB::Open(options, db_path, &db);
     if (status.ok())
@@ -92,15 +92,17 @@ bool Storage::update_internal_state(const std::string &hash,
 
     // remove dc's parent
     auto it_s = sources.find(prevhash);
-    if (it_s != sources.end()) {
+    if (it_s != sources.end())
+    {
         sources.erase(it_s);
         Logger::log(LogLevel::DEBUG, "Hash removed from sources: " + prevhash);
-    }    
+    }
 
     /* update sinks */
     // remove records whose prevhash is hash
     auto it_range = reverse_map.equal_range(hash);
-    for (auto it = it_range.first; it != it_range.second; ++it) {
+    for (auto it = it_range.first; it != it_range.second; ++it)
+    {
         sinks.erase(it->second);
         Logger::log(LogLevel::DEBUG, "Hash removed from sinks: " + it->second);
     }
@@ -115,22 +117,24 @@ bool Storage::update_internal_state(const std::string &hash,
         Logger::log(LogLevel::DEBUG, "Hash added to sinks: " + hash);
         sinks.insert(hash);
         /* update record missing */
-        if (update_record_missing && prevhash != "init") 
+        if (update_record_missing && prevhash != "init")
         {
             Logger::log(LogLevel::DEBUG, "Record missing: " + prevhash);
             set_record_missing(true);
         }
     }
-   
+
     return true;
 }
 
-bool Storage::get(const std::string& key, capsule::CapsulePDU* dc) {
+bool Storage::get(const std::string &key, capsule::CapsulePDU *dc)
+{
     std::string serialized_dc;
 
     rocksdb::Status status = db->Get(rocksdb::ReadOptions(), key, &serialized_dc);
 
-    if (status.ok() && !status.IsNotFound()) {
+    if (status.ok() && !status.IsNotFound())
+    {
         Logger::log(LogLevel::DEBUG, "[Get] Done, key: " + key + " value: " + serialized_dc);
         dc->ParseFromString(serialized_dc);
         return true;
@@ -145,44 +149,45 @@ bool Storage::get(const std::string& key, capsule::CapsulePDU* dc) {
         }
         return false;
     }
-    else 
+    else
     {
         Logger::log(LogLevel::ERROR, "[Get] FAILED, key: " + key);
         return false;
-    }    
+    }
 }
 
 void Storage::get_pairing_result(
     std::unordered_set<std::string> &req_sources,
     std::unordered_set<std::string> &req_sinks,
-    std::vector<capsule::CapsulePDU> &records_to_return) 
+    std::vector<capsule::CapsulePDU> &records_to_return)
 {
     std::unordered_set<std::string> records_to_return_hash;
     /*
         A <- B <- C
                ^\ D
         E
-        definition of ahead: B, C, D are ahead of A; C, D are ahead of B 
+        definition of ahead: B, C, D are ahead of A; C, D are ahead of B
         definition of after: A is after B, C, D; A, B are after C, D
         definition of connected: A, B, C, D are connected to each other; E is not connected to any
     */
-    
+
     /*
     for v ∈ sourceA do
-        if v ∈ nodeB and v ∉ sourceB then add all connected nodes ahead of v in nodeB to L, 
+        if v ∈ nodeB and v ∉ sourceB then add all connected nodes ahead of v in nodeB to L,
             until we reach a node in sinkA or in L
     */
     std::queue<std::string> add_ahead_q;
 
-    for (auto &src_s: req_sources)
+    for (auto &src_s : req_sources)
     {
-        if (sources.find(src_s) != sources.end()) continue;
+        if (sources.find(src_s) != sources.end())
+            continue;
         add_ahead_q.emplace(src_s);
         Logger::log(LogLevel::DEBUG, "add_ahead_q.emplace(src_s): " + src_s);
     }
 
     add_records_ahead(add_ahead_q, req_sources, req_sinks, records_to_return, records_to_return_hash);
-    
+
     Logger::log(LogLevel::DEBUG, "after add ahead of sources - records_to_return hashs: " +
                                      std::accumulate(std::begin(records_to_return_hash),
                                                      std::end(records_to_return_hash),
@@ -191,15 +196,16 @@ void Storage::get_pairing_result(
                                                      { return a.empty() ? b
                                                                         : a + ',' + b; }));
 
-    /* 
-    for v ∈ sinkA do 
+    /*
+    for v ∈ sinkA do
         if v ∈ nodeB and v ∉ sinkB then add all connected nodes after v in nodeB to L, until we reach a node in sourceA or in L
     */
     std::queue<std::string> add_after_q;
 
-    for (auto &sk_s: req_sinks)
+    for (auto &sk_s : req_sinks)
     {
-        if (sinks.find(sk_s) != sinks.end()) continue;
+        if (sinks.find(sk_s) != sinks.end())
+            continue;
         add_after_q.emplace(sk_s);
         Logger::log(LogLevel::DEBUG, "add_after_q.emplace(sk_s): " + sk_s);
     }
@@ -213,7 +219,7 @@ void Storage::get_pairing_result(
                                                      { return a.empty() ? b
                                                                         : a + ',' + b; }));
 
-    /* 
+    /*
     for v ∈ sourceB do
         if v ∉ sourceA and v ∉ L then add connected component of v to L
     for v ∈ sinkB do
@@ -222,24 +228,25 @@ void Storage::get_pairing_result(
     /* Do not add connected parts if your record is missing
         o/w additional sinks or sources can generate a large amount of unnecessary records
     */
-    if (get_record_missing()) return; 
+    if (get_record_missing())
+        return;
 
     std::queue<std::string> add_connected_q;
 
-    for (auto &m_src_s: sources)
+    for (auto &m_src_s : sources)
     {
         if (req_sources.find(m_src_s) != req_sources.end() ||
             records_to_return_hash.find(m_src_s) != records_to_return_hash.end())
             continue;
-        
+
         add_connected_q.emplace(m_src_s);
     }
-    for (auto &m_sk_s: sinks)
+    for (auto &m_sk_s : sinks)
     {
         if (req_sinks.find(m_sk_s) != req_sinks.end() ||
             records_to_return_hash.find(m_sk_s) != records_to_return_hash.end())
             continue;
-        
+
         add_connected_q.emplace(m_sk_s);
     }
 
@@ -274,11 +281,11 @@ void Storage::add_records_ahead(
     {
         std::string next = ahead_q.front();
         ahead_q.pop();
-        
-        if (req_sinks.find(next) != req_sinks.end() || 
-            records_to_return_hash.find(next) != records_to_return_hash.end()) 
-                continue;
-        
+
+        if (req_sinks.find(next) != req_sinks.end() ||
+            records_to_return_hash.find(next) != records_to_return_hash.end())
+            continue;
+
         rocksdb::Status status = db->Get(
             rocksdb::ReadOptions(), next, &next_dc_serialized);
         if (!status.ok() || status.IsNotFound())
@@ -298,7 +305,8 @@ void Storage::add_records_ahead(
 
         // add next's children
         auto it_range = reverse_map.equal_range(next);
-        for (auto it = it_range.first; it != it_range.second; ++it) {
+        for (auto it = it_range.first; it != it_range.second; ++it)
+        {
             ahead_q.emplace(it->second);
         }
     }
@@ -318,9 +326,9 @@ void Storage::add_records_after(
         std::string next = after_q.front();
         after_q.pop();
 
-        if (req_sources.find(next) != req_sources.end() || 
+        if (req_sources.find(next) != req_sources.end() ||
             records_to_return_hash.find(next) != records_to_return_hash.end())
-                continue;
+            continue;
 
         rocksdb::Status status = db->Get(
             rocksdb::ReadOptions(), next, &next_dc_serialized);
@@ -344,17 +352,17 @@ void Storage::add_records_after(
     }
 }
 
-std::unordered_set<std::string> &Storage::get_sources() 
+std::unordered_set<std::string> &Storage::get_sources()
 {
     return sources;
 }
 
-std::unordered_set<std::string> &Storage::get_sinks() 
+std::unordered_set<std::string> &Storage::get_sinks()
 {
     return sinks;
 }
 
-bool Storage::get_record_missing() 
+bool Storage::get_record_missing()
 {
     return record_missing;
 }

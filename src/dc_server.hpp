@@ -19,14 +19,14 @@ public:
               const std::string storage_path);
 
     int dc_server_run();
-        
-    void mcast_q_enqueue(const std::string& mcast_msg);
+
+    void mcast_q_enqueue(const std::string &mcast_msg);
     std::string mcast_q_dequeue();
 
-    void ack_q_enqueue(const std::string& ack_msg);
+    void ack_q_enqueue(const std::string &ack_msg);
     std::string ack_q_dequeue();
 
-    void pairing_q_enqueue(const std::string& pairing_msg);
+    void pairing_q_enqueue(const std::string &pairing_msg);
     std::string pairing_q_dequeue();
 
     void handle_pairing_request(const capsule::PairingRequest &req);
@@ -37,11 +37,11 @@ private:
     int64_t server_id;
     bool is_leader;
     Comm comm;
-    
+
     Storage storage;
     std::mutex storage_mutex;
     std::unordered_map<std::string, int> unverified_count; // count the number of unverified record before it (inclusive)
-    
+
     std::queue<std::string> mcast_q;
     std::mutex mcast_q_mutex;
     std::queue<std::string> ack_q;

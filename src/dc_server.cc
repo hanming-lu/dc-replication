@@ -18,13 +18,13 @@
 
 DC_Server::DC_Server(const int64_t server_id,
                      const bool is_leader,
-                     const std::string storage_path) : 
-                        server_id(server_id), 
-                        is_leader(is_leader),
-                        storage(Storage(storage_path)), 
-                        crypto(Crypto()),
-                        comm(Comm(NET_DC_SERVER_IP, server_id, is_leader, this))
-{}
+                     const std::string storage_path) : server_id(server_id),
+                                                       is_leader(is_leader),
+                                                       storage(Storage(storage_path)),
+                                                       crypto(Crypto()),
+                                                       comm(Comm(NET_DC_SERVER_IP, server_id, is_leader, this))
+{
+}
 
 int DC_Server::dc_server_run()
 {
@@ -35,7 +35,9 @@ int DC_Server::dc_server_run()
     {
         /* Leader DC Server */
         task_threads.push_back(std::thread(&DC_Server::thread_leader_handle_ack, this));
-    } else { 
+    }
+    else
+    {
         /* DC Server */
         // thread to receive msg from mcast
         task_threads.push_back(std::thread(&DC_Server::thread_listen_mcast, this));
@@ -43,7 +45,7 @@ int DC_Server::dc_server_run()
         task_threads.push_back(std::thread(&DC_Server::thread_handle_mcast_msg, this));
         // thread to send acks to leader
         task_threads.push_back(std::thread(&DC_Server::thread_send_ack_to_leader, this));
-        
+
         // thread to initate pairing request when needed
         task_threads.push_back(std::thread(&DC_Server::thread_initiate_pairing, this));
         // thread to listen to incoming pairing msgs
@@ -88,7 +90,7 @@ int DC_Server::thread_listen_mcast()
         this->mcast_q_enqueue(dummy_msg);
 
         Logger::log(LogLevel::DEBUG, "[MCAST TEST] Put a dc: " + dummy_msg);
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));        
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 #endif
 
@@ -114,32 +116,38 @@ int DC_Server::thread_handle_mcast_msg()
     while (true)
     {
         std::string in_msg = mcast_q_dequeue();
-        if (in_msg == "") continue;
+        if (in_msg == "")
+            continue;
 
         Logger::log(LogLevel::DEBUG, "Received a mcast msg: " + in_msg);
 
         capsule::CapsulePDU in_dc;
         in_dc.ParseFromString(in_msg);
-        
-        if (in_dc.prevhash() == "") continue;
+
+        if (in_dc.prevhash() == "")
+            continue;
         bool to_verify = false;
 
         // find parent's unverified count
         // note that unverified_count is not persisted, so valid parent's hash may not be found
         auto found = unverified_count.find(in_dc.prevhash());
- 
-        if (found == unverified_count.end() || (found->second + 1) >= VERIFY_SIG_PER_WRITES) {
+
+        if (found == unverified_count.end() || (found->second + 1) >= VERIFY_SIG_PER_WRITES)
+        {
             to_verify = true;
-        } else {
+        }
+        else
+        {
             unverified_count[in_dc.hash()] = found->second + 1;
         }
         in_dc.set_verified(to_verify);
 
         {
             std::lock_guard<std::mutex> lock(storage_mutex);
-        
+
             // verify signature
-            if (to_verify) {
+            if (to_verify)
+            {
                 if (verify_dc(&in_dc, &this->crypto) != true)
                 {
                     Logger::log(LogLevel::INFO, "DataCapsule Record Verification Failed, but stored anyway. Hash: " + in_dc.hash());
@@ -156,7 +164,8 @@ int DC_Server::thread_handle_mcast_msg()
                 capsule::CapsulePDU parent_dc;
                 while (storage.get(parent_hash, &parent_dc))
                 {
-                    if (parent_dc.verified()) break;
+                    if (parent_dc.verified())
+                        break;
                     Logger::log(LogLevel::DEBUG, "Marking parent as verified. Parent Hash: " + parent_hash);
                     parent_dc.set_verified(true);
                     storage.put(&parent_dc);
@@ -170,7 +179,9 @@ int DC_Server::thread_handle_mcast_msg()
             {
                 Logger::log(LogLevel::WARNING, "Append DataCapsule FAILED, skipped. Hash: " + in_dc.hash());
                 continue;
-            } else {
+            }
+            else
+            {
                 Logger::log(LogLevel::DEBUG, "Successfully appended Hash: " + in_dc.hash());
             }
         }
@@ -223,8 +234,9 @@ int DC_Server::thread_initiate_pairing()
         3a. after pairing, unlock storage
     */
     Logger::log(LogLevel::INFO, "DC Server starts anti-entropy daemon: " + std::to_string(server_id));
-    
-    while (true) {
+
+    while (true)
+    {
         // initiate pairing periodically
         std::this_thread::sleep_for(std::chrono::seconds(10));
 
@@ -232,7 +244,8 @@ int DC_Server::thread_initiate_pairing()
         std::lock_guard<std::mutex> lock(storage_mutex);
 
         // if no need to pair, continue
-        if (!storage.get_record_missing()) continue;
+        if (!storage.get_record_missing())
+            continue;
         Logger::log(LogLevel::DEBUG, "DC Server initiates pairing: " + std::to_string(server_id));
 
         // get digest (i.e. sources and sinks) from storage
@@ -242,7 +255,7 @@ int DC_Server::thread_initiate_pairing()
         // initiates pairing request by sending over digest
         comm.send_dc_server_pairing_request(sources, sinks);
 
-        // unlock storage (done by lock_guard)        
+        // unlock storage (done by lock_guard)
     }
     return 0;
 }
@@ -264,10 +277,12 @@ int DC_Server::thread_handle_pairing_msg()
         3. return the list
         3a. after pairing, unlock records
     */
-    while (true) {
+    while (true)
+    {
         // receive pairing request (i.e. sources, sinks, and reply_addr) or response (i.e. records) from network
         std::string in_msg_s = pairing_q_dequeue();
-        if (in_msg_s == "") {
+        if (in_msg_s == "")
+        {
             std::this_thread::sleep_for(std::chrono::seconds(1));
             continue;
         }
@@ -276,7 +291,7 @@ int DC_Server::thread_handle_pairing_msg()
         in_msg.ParseFromString(in_msg_s);
 
         // call corresponding handler
-        switch(in_msg.msg_type_case())
+        switch (in_msg.msg_type_case())
         {
         case capsule::PairingWrapperMsg::kRequest:
             Logger::log(LogLevel::DEBUG, "Handling a pairing request: " + in_msg_s);
@@ -320,7 +335,8 @@ void DC_Server::handle_pairing_response(const capsule::PairingResponse &resp)
     std::lock_guard<std::mutex> lock(storage_mutex);
 
     // verify and store records
-    for (const capsule::CapsulePDU &in_dc: resp.records()) {
+    for (const capsule::CapsulePDU &in_dc : resp.records())
+    {
         bool succ = verify_dc(&in_dc, &this->crypto);
         if (succ != true)
         {
@@ -330,26 +346,28 @@ void DC_Server::handle_pairing_response(const capsule::PairingResponse &resp)
         {
             Logger::log(LogLevel::DEBUG, "[DC Pairing] Paired DC Record Verification Successful. Hash: " + in_dc.hash());
         }
-        
+
         succ = storage.put(&in_dc);
         if (!succ)
         {
             Logger::log(LogLevel::WARNING, "[DC Pairing] Append Paired DC FAILED. Hash: " + in_dc.hash());
-        } else {
+        }
+        else
+        {
             Logger::log(LogLevel::DEBUG, "[DC Pairing] Successfully appended Paired DC Hash: " + in_dc.hash());
         }
     }
 
     // no longer need to repair for now
     storage.set_record_missing(false);
-    Logger::log(LogLevel::DEBUG, "[DC Pairing] After pairing sources.size(): " + 
-                                    std::to_string(storage.get_sources().size()) +
-                                    " sinks.size(): " + std::to_string(storage.get_sinks().size()));
+    Logger::log(LogLevel::DEBUG, "[DC Pairing] After pairing sources.size(): " +
+                                     std::to_string(storage.get_sources().size()) +
+                                     " sinks.size(): " + std::to_string(storage.get_sinks().size()));
 
     return;
 }
 
-void DC_Server::mcast_q_enqueue(const std::string& mcast_msg)
+void DC_Server::mcast_q_enqueue(const std::string &mcast_msg)
 {
     std::lock_guard<std::mutex> lock_guard(this->mcast_q_mutex);
     this->mcast_q.push(mcast_msg);
@@ -367,7 +385,7 @@ std::string DC_Server::mcast_q_dequeue()
     return in_msg;
 }
 
-void DC_Server::ack_q_enqueue(const std::string& ack_msg)
+void DC_Server::ack_q_enqueue(const std::string &ack_msg)
 {
     std::lock_guard<std::mutex> lock_guard(this->ack_q_mutex);
     this->ack_q.push(ack_msg);
@@ -385,7 +403,7 @@ std::string DC_Server::ack_q_dequeue()
     return out_msg;
 }
 
-void DC_Server::pairing_q_enqueue(const std::string& pairing_msg)
+void DC_Server::pairing_q_enqueue(const std::string &pairing_msg)
 {
     std::lock_guard<std::mutex> lock_guard(this->pairing_q_mutex);
     this->pairing_q.push(pairing_msg);
