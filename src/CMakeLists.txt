@@ -47,6 +47,7 @@ set(source_files
 # Protobuf
 set(protobuf_files
     ${CMAKE_CURRENT_SOURCE_DIR}/proto/capsule.proto
+    ${CMAKE_CURRENT_SOURCE_DIR}/proto/pairing.proto
 )
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${protobuf_files})

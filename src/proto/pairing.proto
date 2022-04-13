@@ -1,0 +1,26 @@
+syntax = "proto2";
+
+package capsule;
+
+import "capsule.proto";
+
+message PairingRequest {
+
+  repeated string sources = 1;
+  repeated string sinks = 2;
+
+  optional string replyAddr = 3;
+}
+
+message PairingResponse {
+
+  repeated CapsulePDU records = 1;
+
+}
+
+message PairingWrapperMsg {
+  oneof msg_type {
+      PairingRequest request = 1;
+      PairingResponse response = 2;
+  }   
+}
