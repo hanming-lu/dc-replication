@@ -76,22 +76,49 @@ int DC_Server::thread_listen_mcast()
 #if INTEGRATED_MODE == false
     std::this_thread::sleep_for(std::chrono::seconds(3));
     std::string cur_prevHash = "init";
+    int test_sender = 999;
     int count = 0;
     for (int i = 0; i < 10; i++)
     {
         capsule::CapsulePDU dummy_dc;
-        dummy_dc.set_sender(this->server_id);
+        dummy_dc.set_sender(test_sender);
         dummy_dc.set_prevhash(cur_prevHash);
         cur_prevHash = std::to_string(count++);
         dummy_dc.set_hash(cur_prevHash);
         sign_dc(&dummy_dc, &this->crypto);
         std::string dummy_msg;
         dummy_dc.SerializeToString(&dummy_msg);
+        /* TEST a hole in a chain*/
+        if ((i == 6) && server_id == 101) continue;
+        /* TEST a hole in a chain ends*/
         this->mcast_q_enqueue(dummy_msg);
 
         Logger::log(LogLevel::DEBUG, "[MCAST TEST] Put a dc: " + dummy_msg);
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+
+    /* TEST branches*/
+    cur_prevHash = "4";
+    count = 100;
+    for (int j = 100; j < 103; j++)
+    {
+        capsule::CapsulePDU branch_dc;
+        branch_dc.set_sender(test_sender);
+        branch_dc.set_prevhash(cur_prevHash);
+        cur_prevHash = std::to_string(count++);
+        branch_dc.set_hash(cur_prevHash);
+        sign_dc(&branch_dc, &this->crypto);
+        std::string branch_msg;
+        branch_dc.SerializeToString(&branch_msg);
+        /* TEST a missing source*/
+        if ((j == 102) && server_id == 102) continue;
+        /* TEST a missing source*/
+        this->mcast_q_enqueue(branch_msg);
+
+        Logger::log(LogLevel::DEBUG, "[BRANCHING TEST] Put a dc: " + branch_msg);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    /* TEST branches ends*/
 #endif
 
     comm.run_dc_server_listen_mcast();
