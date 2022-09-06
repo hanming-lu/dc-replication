@@ -19,8 +19,9 @@ public:
     Comm(std::string ip, int64_t server_id, bool is_leader, DC_Server *dc_server);
 
     void run_leader_dc_server_handle_ack();
-    void run_dc_server_listen_mcast();
+    void run_dc_server_listen_mcast_and_client();
     void run_dc_server_send_ack_to_leader();
+    void run_dc_server_send_serve_resp();
 
     /* anti-entropy pairing */
     void run_dc_server_listen_pairing_msg();
@@ -38,6 +39,7 @@ private:
     std::string m_addr;
     std::string m_pairing_port;
     std::string m_pairing_addr;
+    std::string m_serve_port;
     zmq::context_t m_context;
     std::vector<std::string> m_leader_dc_server_addrs;
     std::unordered_map<std::string, zmq::socket_t *> m_pair_dc_server_sockets;

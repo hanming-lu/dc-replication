@@ -23,6 +23,12 @@ public:
     void mcast_q_enqueue(const std::string &mcast_msg);
     std::string mcast_q_dequeue();
 
+    void serve_req_q_enqueue(const std::string &serve_msg);
+    std::string serve_req_q_dequeue();
+
+    void serve_resp_q_enqueue(const std::string &serve_msg);
+    std::string serve_resp_q_dequeue();
+
     void ack_q_enqueue(const std::string &ack_msg);
     std::string ack_q_dequeue();
 
@@ -44,14 +50,21 @@ private:
 
     std::queue<std::string> mcast_q;
     std::mutex mcast_q_mutex;
+    std::queue<std::string> serve_req_q;
+    std::mutex serve_req_q_mutex;
+    std::queue<std::string> serve_resp_q;
+    std::mutex serve_resp_q_mutex;
     std::queue<std::string> ack_q;
     std::mutex ack_q_mutex;
     std::queue<std::string> pairing_q;
     std::mutex pairing_q_mutex;
 
     // For mcast msg
-    int thread_listen_mcast();
+    int thread_listen_mcast_and_client();
     int thread_handle_mcast_msg();
+    // For get request msg
+    int thread_handle_serve_request_msg();
+    int thread_send_serve_resp();
     // For collector acks
     int thread_send_ack_to_leader();
     int thread_leader_handle_ack();

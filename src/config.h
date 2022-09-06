@@ -2,11 +2,11 @@
 #define __CONFIG_H
 
 // THESE SHOULD BE TRUE BEFORE COMMIT
-#define INTEGRATED_MODE true
+#define INTEGRATED_MODE false
 
 // THESE SHOULD BE FALSE BEFORE COMMIT
-#define DEBUG_MODE false
-#define INITIATE_EMPTY_DB false // WARNING: IF TRUE, THIS WILL DELETE db_path DB if it already exists
+#define DEBUG_MODE true
+#define INITIATE_EMPTY_DB true // WARNING: IF TRUE, THIS WILL DELETE db_path DB if it already exists
 
 // For leader/follower DC networking
 #define NET_DC_SERVER_IP "localhost"            // my IP
@@ -20,6 +20,9 @@
 #define NET_SEED_ROUTER_IP "localhost"
 #define NET_SERVER_JOIN_PORT 6666
 #define NET_SERVER_MCAST_PORT 6667
+
+// For serving get request from clients
+#define NET_SERVE_PORT 4300
 
 // Global Config
 #define VERIFY_SIG_PER_WRITES 5
