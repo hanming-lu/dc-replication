@@ -10,6 +10,7 @@
 
 #include "capsule.pb.h"
 #include "pairing.pb.h"
+#include "request.pb.h"
 #include "comm.hpp"
 #include "dc_server.hpp"
 #include "util/logging.hpp"
@@ -23,6 +24,7 @@ Comm::Comm(std::string ip, int64_t server_id, bool is_leader, DC_Server *dc_serv
     m_addr = "tcp://" + m_ip + ":" + m_port;
     m_pairing_port = std::to_string(NET_DC_SERVER_PAIRING_BASE_PORT + server_id);
     m_pairing_addr = m_ip + ":" + m_pairing_port;
+    m_serve_port = std::to_string(NET_SERVE_PORT + server_id);
     m_dc_server = dc_server;
 
     // initialize leader addrs
@@ -123,11 +125,14 @@ void Comm::run_leader_dc_server_handle_ack()
     }
 }
 
-void Comm::run_dc_server_listen_mcast()
+void Comm::run_dc_server_listen_mcast_and_client()
 {
     // to receive mcast msg from mcast server
     zmq::socket_t socket_from_mcast(m_context, ZMQ_PULL);
     socket_from_mcast.bind("tcp://*:" + m_port);
+    // to receive get (i.e. serve) requests from clients
+    zmq::socket_t socket_serve_client(m_context, ZMQ_PULL);
+    socket_serve_client.bind("tcp://*:" + m_serve_port);
 
 #if INTEGRATED_MODE == true
     zmq::socket_t socket_join(m_context, ZMQ_PUSH);
@@ -138,13 +143,14 @@ void Comm::run_dc_server_listen_mcast()
     // poll for new messages
     std::vector<zmq::pollitem_t> pollitems = {
         {static_cast<void *>(socket_from_mcast), 0, ZMQ_POLLIN, 0},
+        {static_cast<void *>(socket_serve_client), 0, ZMQ_POLLIN, 0 },
     };
 
-    Logger::log(LogLevel::DEBUG, "[DC SERVER] run_dc_server_listen_mcast() start polling.");
+    Logger::log(LogLevel::DEBUG, "[DC SERVER] run_dc_server_listen_mcast_and_client() start polling.");
     while (true)
     {
         zmq::poll(pollitems.data(), pollitems.size(), 0);
-
+        /* mcast */
         if (pollitems[0].revents & ZMQ_POLLIN)
         {
             // Received a msg from mcast
@@ -158,6 +164,14 @@ void Comm::run_dc_server_listen_mcast()
 
                 Logger::log(LogLevel::DEBUG, "[DC SERVER] Received & put a mcast message: " + msg);
             }
+        }
+        /* serve client get request */
+        if (pollitems[1].revents & ZMQ_POLLIN) 
+        {
+            std::string msg = this->recv_string(&socket_serve_client);
+            // put request to serve_req_q
+            this->m_dc_server->serve_req_q_enqueue(msg);
+            Logger::log(LogLevel::DEBUG, "[DC SERVER] Received & put a serve message: " + msg);
         }
     }
 }
@@ -194,6 +208,46 @@ void Comm::run_dc_server_send_ack_to_leader()
     for (auto &socket : socket_send_ack_l)
     {
         delete socket;
+    }
+}
+
+void Comm::run_dc_server_send_serve_resp()
+{
+    std::unordered_map<std::string, zmq::socket_t *> socket_send_serve_resp_map;
+
+    while (true)
+    {
+        std::string out_msg = this->m_dc_server->serve_resp_q_dequeue();
+        if (out_msg == "")
+            continue;
+
+        capsule::ClientGetResponse serve_resp;
+        serve_resp.ParseFromString(out_msg);
+
+        const std::string &target_addr = serve_resp.targetaddr();
+
+#if INTEGRATED_MODE == true
+        // check if target_addr is in socket_send_serve_resp_map, if not, create a new connection
+        auto got = socket_send_serve_resp_map.find(target_addr);
+        if ( got == socket_send_serve_resp_map.end() )
+        {
+            zmq::socket_t *socket_send_serve_resp = new zmq::socket_t(m_context, ZMQ_PUSH);
+            socket_send_serve_resp->connect("tcp://" + target_addr);
+            socket_send_serve_resp_map[target_addr] = socket_send_serve_resp;
+            Logger::log(LogLevel::DEBUG, "[DC SERVER] Connected to Client for get responses. Addr: "+ target_addr);
+        }
+        this->send_string(out_msg, socket_send_serve_resp_map[target_addr]);
+        Logger::log(LogLevel::DEBUG, "[DC SERVER] Sent a get response msg: " + out_msg +
+                                         " to client: " + target_addr);
+#else
+        Logger::log(LogLevel::INFO, "[DC SERVER] Sent a get response msg: " + out_msg +
+                                         " to client: " + target_addr);
+#endif
+    }
+
+    for (auto &socket : socket_send_serve_resp_map)
+    {
+        delete socket.second;
     }
 }
 

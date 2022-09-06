@@ -1,0 +1,21 @@
+syntax = "proto2";
+
+package capsule;
+
+import "capsule.proto";
+
+message ClientGetRequest {
+
+  optional string hash = 1;
+  optional string replyAddr = 2;
+
+}
+
+message ClientGetResponse {
+
+  optional bool success = 1;
+  optional CapsulePDU record = 2;
+
+  optional string targetAddr = 3;
+
+}

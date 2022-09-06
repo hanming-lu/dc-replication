@@ -8,6 +8,7 @@
 
 #include "capsule.pb.h"
 #include "pairing.pb.h"
+#include "request.pb.h"
 #include "comm.hpp"
 #include "config.h"
 #include "crypto.hpp"
@@ -40,11 +41,15 @@ int DC_Server::dc_server_run()
     {
         /* DC Server */
         // thread to receive msg from mcast
-        task_threads.push_back(std::thread(&DC_Server::thread_listen_mcast, this));
+        task_threads.push_back(std::thread(&DC_Server::thread_listen_mcast_and_client, this));
         // thread to handle msg from mcast, generate ack
         task_threads.push_back(std::thread(&DC_Server::thread_handle_mcast_msg, this));
         // thread to send acks to leader
         task_threads.push_back(std::thread(&DC_Server::thread_send_ack_to_leader, this));
+        // thread to handle get request from client
+        task_threads.push_back(std::thread(&DC_Server::thread_handle_serve_request_msg, this));
+        // thread to send get reponse to client
+        task_threads.push_back(std::thread(&DC_Server::thread_send_serve_resp, this));
 
         // thread to initate pairing request when needed
         task_threads.push_back(std::thread(&DC_Server::thread_initiate_pairing, this));
@@ -63,7 +68,7 @@ int DC_Server::dc_server_run()
     return 0;
 }
 
-int DC_Server::thread_listen_mcast()
+int DC_Server::thread_listen_mcast_and_client()
 {
     /*
     DC Server Listen Multicast:
@@ -119,9 +124,25 @@ int DC_Server::thread_listen_mcast()
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     /* TEST branches ends*/
+
+    /* TEST serve get requests*/
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+    for (int i = 0; i < 3; i++) 
+    {
+        capsule::ClientGetRequest in_req;
+        in_req.set_hash(std::to_string(i));
+        in_req.set_replyaddr("testaddr");
+        std::string msg;
+        in_req.SerializeToString(&msg);
+        this->serve_req_q_enqueue(msg);
+
+        Logger::log(LogLevel::DEBUG, "[SERVE TEST] Put a request msg: " + msg);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    /* TEST serve get requests ends*/
 #endif
 
-    comm.run_dc_server_listen_mcast();
+    comm.run_dc_server_listen_mcast_and_client();
 
     return 0;
 }
@@ -225,6 +246,63 @@ int DC_Server::thread_handle_mcast_msg()
         // enqueue ack_msg
         this->ack_q_enqueue(ack_msg);
     }
+    return 0;
+}
+
+int DC_Server::thread_handle_serve_request_msg()
+{
+    /*
+    DC Server Handling:
+    While true:
+    1. get a client get request from serve_req_q
+    2. Find dc using provided hash and return
+    2b. if not exist, set set_record_missing to true, return empty dc
+    */
+    Logger::log(LogLevel::DEBUG, "thread_handle_serve_request_msg() running, dc server #" + std::to_string(this->server_id));
+
+    while (true)
+    {
+        std::string in_msg = serve_req_q_dequeue();
+        if (in_msg == "")
+            continue;
+
+        Logger::log(LogLevel::DEBUG, "Received a serve msg: " + in_msg);
+
+        capsule::ClientGetRequest in_req;
+        in_req.ParseFromString(in_msg);
+        
+        std::string hash = in_req.hash();
+        capsule::CapsulePDU dc_to_return;
+        bool succ = storage.get(hash, &dc_to_return);
+
+        capsule::ClientGetResponse serve_resp;
+
+        if (!succ)
+        {
+            Logger::log(LogLevel::WARNING, "Unable to fetch DC for client. Hash: " + hash);
+            serve_resp.set_success(false);
+        }
+        else
+        {
+            Logger::log(LogLevel::DEBUG, "Successfully fetched DC. Hash: " + hash);
+            serve_resp.set_success(true);
+            *serve_resp.mutable_record() = dc_to_return;
+        }
+        
+        std::string serve_resp_msg;
+        serve_resp.SerializeToString(&serve_resp_msg);
+        
+        // enqueue serve_resp_msg
+        this->serve_resp_q_enqueue(serve_resp_msg);
+    }
+    return 0;
+}
+
+int DC_Server::thread_send_serve_resp()
+{
+    Logger::log(LogLevel::DEBUG, "thread_send_serve_resp() running, dc server #" + std::to_string(this->server_id));
+    comm.run_dc_server_send_serve_resp();
+
     return 0;
 }
 
@@ -408,6 +486,42 @@ std::string DC_Server::mcast_q_dequeue()
     {
         in_msg = this->mcast_q.front();
         this->mcast_q.pop();
+    }
+    return in_msg;
+}
+
+void DC_Server::serve_req_q_enqueue(const std::string &serve_msg)
+{
+    std::lock_guard<std::mutex> lock_guard(this->serve_req_q_mutex);
+    this->serve_req_q.push(serve_msg);
+}
+
+std::string DC_Server::serve_req_q_dequeue()
+{
+    std::lock_guard<std::mutex> lock_guard(this->serve_req_q_mutex);
+    std::string in_msg = "";
+    if (!this->serve_req_q.empty())
+    {
+        in_msg = this->serve_req_q.front();
+        this->serve_req_q.pop();
+    }
+    return in_msg;
+}
+
+void DC_Server::serve_resp_q_enqueue(const std::string &serve_msg)
+{
+    std::lock_guard<std::mutex> lock_guard(this->serve_resp_q_mutex);
+    this->serve_resp_q.push(serve_msg);
+}
+
+std::string DC_Server::serve_resp_q_dequeue()
+{
+    std::lock_guard<std::mutex> lock_guard(this->serve_resp_q_mutex);
+    std::string in_msg = "";
+    if (!this->serve_resp_q.empty())
+    {
+        in_msg = this->serve_resp_q.front();
+        this->serve_resp_q.pop();
     }
     return in_msg;
 }
