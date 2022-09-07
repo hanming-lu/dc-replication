@@ -343,7 +343,7 @@ int DC_Server::thread_initiate_pairing()
     while (true)
     {
         // initiate pairing periodically
-        std::this_thread::sleep_for(std::chrono::seconds(10));
+        std::this_thread::sleep_for(std::chrono::seconds(PAIRING_TIMEOUT_SEC));
 
         // lock storage
         std::lock_guard<std::mutex> lock(storage_mutex);

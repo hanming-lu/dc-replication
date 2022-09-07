@@ -1,3 +1,4 @@
+#include <chrono>
 #include <cstdlib>
 #include <string>
 #include <thread>
@@ -5,6 +6,7 @@
 
 #include "config.h"
 #include "dc_server.hpp"
+#include "dc_client.hpp"
 #include "util/logging.hpp"
 
 int thread_dc_server(int64_t server_id, bool is_leader)
@@ -22,11 +24,26 @@ int thread_dc_server(int64_t server_id, bool is_leader)
     return 0;
 }
 
+int thread_dc_client()
+{
+    // DC Client Init
+    DC_Client *dc_client = new DC_Client();
+
+    // Run DC Client
+    dc_client->dc_client_run();
+
+    // Delete DC Client
+    delete dc_client;
+
+    return 0;
+}
+
 int main(int argc, char *argv[])
 {
     /*
     1. start collector/leader server thread
     2. start dc server threads
+    3. wait for 10s and start client
     */
     std::vector<std::thread> server_threads;
     if (HAS_LEADER_LOCAL)
@@ -38,6 +55,9 @@ int main(int argc, char *argv[])
     {
         server_threads.push_back(std::thread(thread_dc_server, id, /* is_leader */ false));
     }
+
+    std::this_thread::sleep_for(std::chrono::seconds(10));
+    server_threads.push_back(std::thread(thread_dc_client));
 
     // Wait for all server threads to finish
     for (auto &t : server_threads)
