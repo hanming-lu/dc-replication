@@ -1,6 +1,8 @@
 #include <openssl/evp.h>
 #include <openssl/ec.h>
 #include <openssl/dsa.h>
+#include <openssl/aes.h>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -9,6 +11,7 @@
 
 Crypto::Crypto()
 {
+    /* for sign */
     // Initiate pkey
     EVP_PKEY_CTX *ctx;
 
@@ -48,6 +51,10 @@ Crypto::Crypto()
     }
 
     Logger::log(LogLevel::INFO, "[Crypto] MDCTX Create Successful");
+
+    /* for encrypt */
+    memset(aes_key, 0, AES_KEYLENGTH/8);
+    strcpy((char*) aes_key, encrypt_key.c_str());
 }
 
 Crypto::~Crypto()
@@ -114,4 +121,54 @@ bool Crypto::verify_message(const std::string &msg, const std::string &signature
         /* Failure */
         return false;
     }
+}
+
+std::string Crypto::encrypt_message(const std::string &msg)
+{
+    size_t msg_len = msg.length();
+    unsigned char aes_input[msg_len];
+    memset(aes_input, 0, msg_len/8);
+    strcpy((char*) aes_input, msg.c_str());
+
+    /* init vector */
+    unsigned char iv[AES_BLOCK_SIZE];
+    memset(iv, 0x00, AES_BLOCK_SIZE);
+
+    // buffers for encryption
+    const size_t enc_len = ((msg_len + AES_BLOCK_SIZE) / AES_BLOCK_SIZE) * AES_BLOCK_SIZE;
+    unsigned char enc_out[enc_len];
+    memset(enc_out, 0, sizeof(enc_out));
+
+    AES_KEY enc_key;
+    AES_set_encrypt_key(aes_key, AES_KEYLENGTH, &enc_key);
+    AES_cbc_encrypt(aes_input, enc_out, msg_len, &enc_key, iv, AES_ENCRYPT);
+
+    std::string enc_msg_s((char *)enc_out);
+
+    return enc_msg_s;
+}
+
+std::string Crypto::decrypt_message(const std::string &enc_msg, const size_t orig_msg_len)
+{
+    size_t enc_msg_len = enc_msg.length();
+    unsigned char aes_input[enc_msg_len];
+    memset(aes_input, 0, enc_msg_len/8);
+    strcpy((char*) aes_input, enc_msg.c_str());
+
+    /* init vector */
+    unsigned char iv[AES_BLOCK_SIZE];
+    memset(iv, 0x00, AES_BLOCK_SIZE);
+
+    // buffers for decryption
+    const size_t enc_len = ((orig_msg_len + AES_BLOCK_SIZE) / AES_BLOCK_SIZE) * AES_BLOCK_SIZE;
+    unsigned char dec_out[orig_msg_len];
+    memset(dec_out, 0, sizeof(dec_out));
+
+    AES_KEY dec_key;
+    AES_set_decrypt_key(aes_key, AES_KEYLENGTH, &dec_key);
+    AES_cbc_encrypt(aes_input, dec_out, enc_len, &dec_key, iv, AES_DECRYPT);
+
+    std::string dec_msg_s((char *)dec_out);
+
+    return dec_msg_s;
 }
