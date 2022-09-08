@@ -27,7 +27,7 @@ int thread_dc_server(int64_t server_id, bool is_leader)
 int thread_dc_client()
 {
     // DC Client Init
-    DC_Client *dc_client = new DC_Client();
+    DC_Client *dc_client = new DC_Client(0);
 
     // Run DC Client
     dc_client->dc_client_run();

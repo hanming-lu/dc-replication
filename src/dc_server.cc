@@ -44,8 +44,13 @@ int DC_Server::dc_server_run()
         task_threads.push_back(std::thread(&DC_Server::thread_listen_mcast_and_client, this));
         // thread to handle msg from mcast, generate ack
         task_threads.push_back(std::thread(&DC_Server::thread_handle_mcast_msg, this));
+#if OUTGOING_MODE == 1
+        // thread to send acks to client
+        task_threads.push_back(std::thread(&DC_Server::thread_send_ack_to_replyaddr, this));
+#elif OUTGOING_MODE == 2
         // thread to send acks to leader
         task_threads.push_back(std::thread(&DC_Server::thread_send_ack_to_leader, this));
+#endif
         // thread to handle get request from client
         task_threads.push_back(std::thread(&DC_Server::thread_handle_serve_request_msg, this));
         // thread to send get reponse to client
@@ -77,70 +82,6 @@ int DC_Server::thread_listen_mcast_and_client()
     2. add it to mcast_q
     */
     Logger::log(LogLevel::INFO, "DC Server starts receiving multicast msgs, dc server #" + std::to_string(this->server_id));
-
-#if INTEGRATED_MODE == false
-    std::this_thread::sleep_for(std::chrono::seconds(3));
-    std::string cur_prevHash = "init";
-    int test_sender = 999;
-    int count = 0;
-    for (int i = 0; i < 10; i++)
-    {
-        capsule::CapsulePDU dummy_dc;
-        dummy_dc.set_sender(test_sender);
-        dummy_dc.set_prevhash(cur_prevHash);
-        cur_prevHash = std::to_string(count++);
-        dummy_dc.set_hash(cur_prevHash);
-        sign_dc(&dummy_dc, &this->crypto);
-        std::string dummy_msg;
-        dummy_dc.SerializeToString(&dummy_msg);
-        /* TEST a hole in a chain*/
-        if ((i == 6) && server_id == 101) continue;
-        /* TEST a hole in a chain ends*/
-        this->mcast_q_enqueue(dummy_msg);
-
-        Logger::log(LogLevel::DEBUG, "[MCAST TEST] Put a dc: " + dummy_msg);
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-
-    /* TEST branches*/
-    cur_prevHash = "4";
-    count = 100;
-    for (int j = 100; j < 103; j++)
-    {
-        capsule::CapsulePDU branch_dc;
-        branch_dc.set_sender(test_sender);
-        branch_dc.set_prevhash(cur_prevHash);
-        cur_prevHash = std::to_string(count++);
-        branch_dc.set_hash(cur_prevHash);
-        sign_dc(&branch_dc, &this->crypto);
-        std::string branch_msg;
-        branch_dc.SerializeToString(&branch_msg);
-        /* TEST a missing source*/
-        if ((j == 102) && server_id == 102) continue;
-        /* TEST a missing source*/
-        this->mcast_q_enqueue(branch_msg);
-
-        Logger::log(LogLevel::DEBUG, "[BRANCHING TEST] Put a dc: " + branch_msg);
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-    /* TEST branches ends*/
-
-    /* TEST serve get requests*/
-    std::this_thread::sleep_for(std::chrono::seconds(5));
-    for (int i = 0; i < 3; i++) 
-    {
-        capsule::ClientGetRequest in_req;
-        in_req.set_hash(std::to_string(i));
-        in_req.set_replyaddr("testaddr");
-        std::string msg;
-        in_req.SerializeToString(&msg);
-        this->serve_req_q_enqueue(msg);
-
-        Logger::log(LogLevel::DEBUG, "[SERVE TEST] Put a request msg: " + msg);
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-    /* TEST serve get requests ends*/
-#endif
 
     comm.run_dc_server_listen_mcast_and_client();
 
@@ -239,6 +180,7 @@ int DC_Server::thread_handle_mcast_msg()
         ack_dc.set_sender(in_dc.sender());
         ack_dc.set_hash(in_dc.hash());
         ack_dc.set_msgtype(REPLICATION_ACK);
+        ack_dc.set_replyaddr(in_dc.replyaddr());
         sign_dc(&ack_dc, &this->crypto);
         std::string ack_msg;
         ack_dc.SerializeToString(&ack_msg);
@@ -276,6 +218,8 @@ int DC_Server::thread_handle_serve_request_msg()
         bool succ = storage.get(hash, &dc_to_return);
 
         capsule::ClientGetResponse serve_resp;
+        serve_resp.set_hash(in_req.hash());
+        serve_resp.set_targetaddr(in_req.replyaddr());
 
         if (!succ)
         {
@@ -302,6 +246,14 @@ int DC_Server::thread_send_serve_resp()
 {
     Logger::log(LogLevel::DEBUG, "thread_send_serve_resp() running, dc server #" + std::to_string(this->server_id));
     comm.run_dc_server_send_serve_resp();
+
+    return 0;
+}
+
+int DC_Server::thread_send_ack_to_replyaddr()
+{
+    Logger::log(LogLevel::DEBUG, "thread_send_ack_to_replyaddr() running, dc server #" + std::to_string(this->server_id));
+    comm.run_dc_server_send_ack_to_replyaddr();
 
     return 0;
 }
