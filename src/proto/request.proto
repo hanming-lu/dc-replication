@@ -14,8 +14,9 @@ message ClientGetRequest {
 message ClientGetResponse {
 
   optional bool success = 1;
-  optional CapsulePDU record = 2;
+  optional string hash = 2;
+  optional CapsulePDU record = 3;
 
-  optional string targetAddr = 3;
+  optional string targetAddr = 4;
 
 }

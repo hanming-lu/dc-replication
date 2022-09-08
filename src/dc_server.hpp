@@ -65,6 +65,8 @@ private:
     // For get request msg
     int thread_handle_serve_request_msg();
     int thread_send_serve_resp();
+    // For send acks to client
+    int thread_send_ack_to_replyaddr();
     // For collector acks
     int thread_send_ack_to_leader();
     int thread_leader_handle_ack();

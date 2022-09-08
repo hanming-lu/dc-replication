@@ -1,8 +1,10 @@
 #ifndef __CONFIG_H
 #define __CONFIG_H
 
+/**************** Server Config ****************/
 // THESE SHOULD BE TRUE BEFORE COMMIT
 #define INTEGRATED_MODE false
+#define OUTGOING_MODE 1 // 1 = Base Case; 2 = Proxy
 
 // THESE SHOULD BE FALSE BEFORE COMMIT
 #define DEBUG_MODE true
@@ -38,5 +40,10 @@
 // Local Config for DC servers
 #define LOCAL_DC_SERVER_COUNT 3
 #define INIT_DC_SERVER_ID 101
+
+
+/**************** Client Config ****************/
+#define NET_CLIENT_RECV_ACK_PORT 5001
+#define NET_CLIENT_RECV_GET_RESP_PORT 5101
 
 #endif // __CONFIG_H

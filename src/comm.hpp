@@ -20,6 +20,7 @@ public:
 
     void run_leader_dc_server_handle_ack();
     void run_dc_server_listen_mcast_and_client();
+    void run_dc_server_send_ack_to_replyaddr();
     void run_dc_server_send_ack_to_leader();
     void run_dc_server_send_serve_resp();
 

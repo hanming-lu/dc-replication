@@ -112,10 +112,10 @@ void Comm::run_leader_dc_server_handle_ack()
             // send ack back to client if a threshold is reached
             if (this->ack_map[sender_hash] == WRITE_THRESHOLD)
             {
-                Logger::log(LogLevel::DEBUG, "[LEADER DC SERVER] Write threshold reached for hash: " + sender_hash);
                 this->ack_map[sender_hash] = 0;
 #if INTEGRATED_MODE == true
                 // use multicast to send ack
+                Logger::log(LogLevel::DEBUG, "[LEADER DC SERVER] Write threshold reached for hash: " + sender_hash);
                 this->send_string(in_msg, &socket_send);
 #else
                 Logger::log(LogLevel::INFO, "[LEADER DC SERVER] Write threshold reached for hash: " + sender_hash);
@@ -176,6 +176,43 @@ void Comm::run_dc_server_listen_mcast_and_client()
     }
 }
 
+void Comm::run_dc_server_send_ack_to_replyaddr()
+{
+    std::unordered_map<std::string, zmq::socket_t *> socket_send_ack_map;
+
+    while (true)
+    {
+        std::string out_msg = this->m_dc_server->ack_q_dequeue();
+        if (out_msg == "")
+            continue;
+
+        capsule::CapsulePDU out_ack_dc;
+        out_ack_dc.ParseFromString(out_msg);
+
+        const std::string &replyaddr = out_ack_dc.replyaddr();
+        Logger::log(LogLevel::DEBUG, "[DC SERVER] sending ack to replyaddr: "+ replyaddr);
+
+        // check if replyaddr is in socket_send_ack_map, if not, create a new connection
+        auto got = socket_send_ack_map.find(replyaddr);
+        if ( got == socket_send_ack_map.end() )
+        {
+            zmq::socket_t *socket_send_ack = new zmq::socket_t(m_context, ZMQ_PUSH);
+            socket_send_ack->connect("tcp://" + replyaddr);
+            socket_send_ack_map[replyaddr] = socket_send_ack;
+            Logger::log(LogLevel::DEBUG, "[DC SERVER] Connected to Client for ack. Addr: "+ replyaddr);
+        }
+
+        this->send_string(out_msg, socket_send_ack_map[replyaddr]);
+        Logger::log(LogLevel::DEBUG, "[DC SERVER] Sent an ack msg: " + out_msg +
+                                         " to client: " + replyaddr);
+    }
+
+    for (auto &p : socket_send_ack_map)
+    {
+        delete p.second;
+    }
+}
+
 void Comm::run_dc_server_send_ack_to_leader()
 {
     std::vector<zmq::socket_t *> socket_send_ack_l;
@@ -185,8 +222,6 @@ void Comm::run_dc_server_send_ack_to_leader()
         socket_send_ack->connect("tcp://" + addr);
         socket_send_ack_l.push_back(socket_send_ack);
     }
-    // zmq::socket_t socket_send_ack(m_context, ZMQ_PUSH);
-    // socket_send_ack.connect("tcp://" + m_leader_dc_server_ip + ":" + m_leader_dc_server_recv_ack_port);
 
     Logger::log(LogLevel::DEBUG, "[DC SERVER] Connected to Leader DC Server for acks");
     while (true)
@@ -225,8 +260,8 @@ void Comm::run_dc_server_send_serve_resp()
         serve_resp.ParseFromString(out_msg);
 
         const std::string &target_addr = serve_resp.targetaddr();
+        Logger::log(LogLevel::DEBUG, "[DC SERVER] target_addr for get resp: "+ target_addr);
 
-#if INTEGRATED_MODE == true
         // check if target_addr is in socket_send_serve_resp_map, if not, create a new connection
         auto got = socket_send_serve_resp_map.find(target_addr);
         if ( got == socket_send_serve_resp_map.end() )
@@ -239,10 +274,6 @@ void Comm::run_dc_server_send_serve_resp()
         this->send_string(out_msg, socket_send_serve_resp_map[target_addr]);
         Logger::log(LogLevel::DEBUG, "[DC SERVER] Sent a get response msg: " + out_msg +
                                          " to client: " + target_addr);
-#else
-        Logger::log(LogLevel::INFO, "[DC SERVER] Sent a get response msg: " + out_msg +
-                                         " to client: " + target_addr);
-#endif
     }
 
     for (auto &socket : socket_send_serve_resp_map)

@@ -43,6 +43,7 @@ set(source_files
     dc_server.hpp dc_server.cc
     comm.hpp comm.cc
     dc_client.hpp dc_client.cc
+    client_comm.hpp client_comm.cc
 )
 
 # Protobuf
