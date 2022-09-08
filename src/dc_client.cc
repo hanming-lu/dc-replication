@@ -36,8 +36,12 @@ int DC_Client::dc_client_run()
     */
     task_threads.push_back(std::thread(&DC_Client::client_send_base_run, this));
     
-    /* wait for send to finish, then get */
-    std::this_thread::sleep_for(std::chrono::seconds(10));
+    /* 
+    Client get requests:
+     1. create several dummy get requests
+     2. send dc's via network to a random dc server
+    */
+    std::this_thread::sleep_for(std::chrono::seconds(10)); // wait for put to finish
     task_threads.push_back(std::thread(&DC_Client::client_get_req_run, this));
 
     /* 
