@@ -45,15 +45,6 @@ int DC_Client::dc_client_run()
     task_threads.push_back(std::thread(&DC_Client::client_get_req_run, this));
 
     /* 
-    Client send optimization #1 - mcast:
-     1. create several dummy dc's
-     2. sign and encrypt the dc's
-     3. send dc's via network to proxy port
-     4. proxy mcast dc's to dc servers
-     5. dc servers verify signatures
-    */
-
-    /* 
     Client recv optimization #1 - one ack:
      1. dc servers sign their acks
      2. proxy receives acks from all dc servers
@@ -64,22 +55,23 @@ int DC_Client::dc_client_run()
     */
 
     /* 
-    Client send optimization #2 - hmac & proxy in enclave:
+    Client send optimization #2 - hmac:
      1. create several dummy dc's
      2. sign and encrypt the dc's
      3. send dc's via network to proxy port
      4. proxy verifies signatures
-     5. proxy mcast dc's to dc servers via hmac
-     6. dc servers do not verify because of hmac & proxy is trustworthy
+     5. proxy encrypt via hmac and mcast dc's to dc servers
+     6. dc servers decrypt hmac
+     6a. hmac can verify both data integrity and authenticity of a message
     */
 
    /* 
     Client recv optimization #2 - hmac & proxy in enclave:
-     1. dc servers do not sign because of hmac & proxy is trustworthy
+     1. dc servers encrypt and send via hmac to proxy
      2. proxy receives acks from all dc servers via hmac
-     3. proxy creates a signature 
-     4. proxy sends back to client
-     5. client decrypt and verify the ack
+     4. proxy sends ack back to client
+     5. client receives ack. Do not need to verify because proxy is in enclave.
+     5b. If proxy is not in enclave, an ack still needs a threshold signature from several dc servers for a quorum.
     */
 
     // Wait for all tasks to finish

@@ -276,7 +276,7 @@ int DC_Server::thread_leader_handle_ack()
     4. When a threshold of acks is reached, send threshold signature back to client
     */
     Logger::log(LogLevel::INFO, "Leader DC Server starts receiving acks, dc server #" + std::to_string(this->server_id));
-    comm.run_leader_dc_server_handle_ack();
+    comm.run_leader_dc_server_handle_ack_opt1();
 
     return 0;
 }

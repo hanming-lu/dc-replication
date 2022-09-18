@@ -38,8 +38,9 @@ public:
     void handle_pairing_request(const capsule::PairingRequest &req);
     void handle_pairing_response(const capsule::PairingResponse &resp);
 
-private:
     Crypto crypto;
+
+private:
     int64_t server_id;
     bool is_leader;
     Comm comm;
@@ -59,6 +60,10 @@ private:
     std::queue<std::string> pairing_q;
     std::mutex pairing_q_mutex;
 
+    /* Proxy */
+    int thread_leader_handle_ack();
+
+    /* Server */
     // For mcast msg
     int thread_listen_mcast_and_client();
     int thread_handle_mcast_msg();
@@ -69,7 +74,6 @@ private:
     int thread_send_ack_to_replyaddr();
     // For collector acks
     int thread_send_ack_to_leader();
-    int thread_leader_handle_ack();
     // For anti-entropy pairing
     int thread_initiate_pairing();
     int thread_listen_pairing_msg();
