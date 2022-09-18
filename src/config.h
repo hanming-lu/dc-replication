@@ -4,7 +4,7 @@
 /**************** Server Config ****************/
 // THESE SHOULD BE TRUE BEFORE COMMIT
 #define INTEGRATED_MODE false
-#define OUTGOING_MODE 1 // 1 = Base Case; 2 = Proxy
+#define OUTGOING_MODE 2 // 1 = Base Case; 2 = Proxy; 3 = Proxy with HMAC
 
 // THESE SHOULD BE FALSE BEFORE COMMIT
 #define DEBUG_MODE true

@@ -18,7 +18,7 @@ class Comm
 public:
     Comm(std::string ip, int64_t server_id, bool is_leader, DC_Server *dc_server);
 
-    void run_leader_dc_server_handle_ack();
+    void run_leader_dc_server_handle_ack_opt1();
     void run_dc_server_listen_mcast_and_client();
     void run_dc_server_send_ack_to_replyaddr();
     void run_dc_server_send_ack_to_leader();

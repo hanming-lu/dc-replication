@@ -9,6 +9,7 @@
 #include <zmq.hpp>
 
 #include "capsule.pb.h"
+#include "crypto_util.hpp"
 #include "pairing.pb.h"
 #include "request.pb.h"
 #include "comm.hpp"
@@ -76,24 +77,28 @@ Comm::Comm(std::string ip, int64_t server_id, bool is_leader, DC_Server *dc_serv
     Logger::log(LogLevel::DEBUG, "[DC SERVER] Number of pairing destinations: " + std::to_string(m_pair_dc_server_sockets.size()));
 }
 
-void Comm::run_leader_dc_server_handle_ack()
+void Comm::run_leader_dc_server_handle_ack_opt1()
 {
+    /* 
+    Client recv optimization #1 - one ack:
+     1. dc servers sign their acks
+     2. proxy receives acks from all dc servers
+     3. proxy verifies all acks
+     4. proxy creates a threshold signature 
+     5. proxy sends back to client
+     6. client decrypt and verify the ack
+    */
+    std::unordered_map<std::string, zmq::socket_t *> socket_send_ack_map;
     // socket to recv acks
     zmq::socket_t socket_recv_acks(m_context, ZMQ_PULL);
     socket_recv_acks.bind("tcp://*:" + std::to_string(NET_LEADER_DC_SERVER_RECV_ACK_PORT));
-
-#if INTEGRATED_MODE == true
-    // use multicast to send ack
-    zmq::socket_t socket_send(m_context, ZMQ_PUSH);
-    socket_send.connect("tcp://" + m_seed_server_ip + ":" + m_seed_server_mcast_port);
-#endif
 
     // poll ack messages
     std::vector<zmq::pollitem_t> pollitems = {
         {static_cast<void *>(socket_recv_acks), 0, ZMQ_POLLIN, 0},
     };
 
-    Logger::log(LogLevel::DEBUG, "[LEADER DC SERVER] run_leader_dc_server_handle_ack() start polling.");
+    Logger::log(LogLevel::DEBUG, "[DC Proxy] run_leader_dc_server_handle_ack_opt1() start polling.");
     while (true)
     {
         zmq::poll(pollitems.data(), pollitems.size(), 0);
@@ -101,10 +106,12 @@ void Comm::run_leader_dc_server_handle_ack()
         if (pollitems[0].revents & ZMQ_POLLIN)
         {
             std::string in_msg = this->recv_string(&socket_recv_acks);
-            Logger::log(LogLevel::DEBUG, "[LEADER DC SERVER] Received ack message: " + in_msg);
+            Logger::log(LogLevel::DEBUG, "[DC Proxy] Received ack message: " + in_msg);
             capsule::CapsulePDU in_ack_dc;
             in_ack_dc.ParseFromString(in_msg);
+            verify_dc(&in_ack_dc, &(m_dc_server->crypto));
             std::string sender_hash = std::to_string(in_ack_dc.sender()) + in_ack_dc.hash();
+            Logger::log(LogLevel::DEBUG, "[DC Proxy] Received ack sender_hash: " + sender_hash);
 
             // Store to a local unordered_map of acks
             this->ack_map[sender_hash] += 1;
@@ -112,14 +119,28 @@ void Comm::run_leader_dc_server_handle_ack()
             // send ack back to client if a threshold is reached
             if (this->ack_map[sender_hash] == WRITE_THRESHOLD)
             {
+                Logger::log(LogLevel::DEBUG, "[DC Proxy] ack reached WRITE_THRESHOLD for sender_hash: " + sender_hash);
                 this->ack_map[sender_hash] = 0;
-#if INTEGRATED_MODE == true
-                // use multicast to send ack
-                Logger::log(LogLevel::DEBUG, "[LEADER DC SERVER] Write threshold reached for hash: " + sender_hash);
-                this->send_string(in_msg, &socket_send);
-#else
-                Logger::log(LogLevel::INFO, "[LEADER DC SERVER] Write threshold reached for hash: " + sender_hash);
-#endif
+                sign_dc(&in_ack_dc, &(m_dc_server->crypto));
+                std::string out_msg;
+                in_ack_dc.SerializeToString(&out_msg);
+                const std::string &replyaddr = in_ack_dc.replyaddr();
+
+                Logger::log(LogLevel::DEBUG, "[DC Proxy] sending ack to replyaddr: "+ replyaddr);
+
+                // check if replyaddr is in socket_send_ack_map, if not, create a new connection
+                auto got = socket_send_ack_map.find(replyaddr);
+                if ( got == socket_send_ack_map.end() )
+                {
+                    zmq::socket_t *socket_send_ack = new zmq::socket_t(m_context, ZMQ_PUSH);
+                    socket_send_ack->connect("tcp://" + replyaddr);
+                    socket_send_ack_map[replyaddr] = socket_send_ack;
+                    Logger::log(LogLevel::DEBUG, "[DC Proxy] Connected to Client for ack. Addr: "+ replyaddr);
+                }
+
+                this->send_string(out_msg, socket_send_ack_map[replyaddr]);
+                Logger::log(LogLevel::DEBUG, "[DC Proxy] Sent an ack msg: " + out_msg +
+                                                " to client: " + replyaddr);
             }
         }
     }

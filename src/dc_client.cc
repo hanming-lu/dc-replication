@@ -45,15 +45,6 @@ int DC_Client::dc_client_run()
     task_threads.push_back(std::thread(&DC_Client::client_get_req_run, this));
 
     /* 
-    Client send optimization #1 - mcast:
-     1. create several dummy dc's
-     2. sign and encrypt the dc's
-     3. send dc's via network to proxy port
-     4. proxy mcast dc's to dc servers
-     5. dc servers verify signatures
-    */
-
-    /* 
     Client recv optimization #1 - one ack:
      1. dc servers sign their acks
      2. proxy receives acks from all dc servers

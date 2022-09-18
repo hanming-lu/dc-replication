@@ -124,10 +124,17 @@ void ClientComm::run_dc_client_listen_server()
                 Logger::log(LogLevel::DEBUG, "[DC CLIENT] Received an ack, verification Successful. Hash: " + ack_dc.hash());
             }
             
-            m_recv_ack_map[ack_dc.hash()] += 1;            
+            m_recv_ack_map[ack_dc.hash()] += 1;
+#if OUTGOING_MODE == 1
+            // receive acks directly from dc servers
             if (m_recv_ack_map[ack_dc.hash()] == WRITE_THRESHOLD) {
                 Logger::log(LogLevel::DEBUG, "[DC CLIENT] ack message reached threshold for hash: " + ack_dc.hash());
             }
+#elif OUTGOING_MODE == 2
+            // receive acks from proxy
+            Logger::log(LogLevel::DEBUG, "[DC CLIENT] received ack message from proxy for hash: " + ack_dc.hash());
+#endif
+            
         }
         /* get response */
         if (pollitems[1].revents & ZMQ_POLLIN) 
