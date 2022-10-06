@@ -71,7 +71,7 @@ ClientComm::ClientComm(std::string ip, int64_t client_id, DC_Client *dc_client)
 
 #if OUTGOING_MODE == 3
     // initialize proxy write socket
-    std::string proxy_write_addr = NET_PROXY_IP + ":" + std::to_string(NET_PROXY_RECV_WRITE_REQ_PORT);
+    std::string proxy_write_addr = (std::string) NET_PROXY_IP + ":" + std::to_string(NET_PROXY_RECV_WRITE_REQ_PORT);
     m_proxy_write_socket = new zmq::socket_t(m_context, ZMQ_PUSH);
     m_proxy_write_socket->connect("tcp://" + proxy_write_addr);
     Logger::log(LogLevel::DEBUG, "[DC CLIENT] connected to proxy for writes: " + proxy_write_addr);
@@ -143,15 +143,14 @@ void ClientComm::run_dc_client_listen_server()
             }
 #elif OUTGOING_MODE == 3
             // verify hmac digest
-            std::string c_digest_expected = c_hmac_sha256(ack_dc.hash().c_str(), ack_dc.hash().length());
+            std::string c_digest_expected = m_dc_client->crypto.c_hmac_sha256(ack_dc.hash().c_str(), ack_dc.hash().length());
             if (c_digest_expected == ack_dc.payload_hmac())
             {
                 Logger::log(LogLevel::DEBUG, "[DC CLIENT] Received an ack, HMAC verification Successful. Hash: " + ack_dc.hash());
             }
             else
             {
-                Logger::log(LogLevel::INFO, "[DC CLIENT] Received an ack, HMAC verification Failed. " +
-                    "Hash: " + ack_dc.hash() +
+                Logger::log(LogLevel::INFO, "[DC CLIENT] Received an ack, HMAC verification Failed, hash: " + ack_dc.hash() +
                     "\nExpected HMAC: " + c_digest_expected +
                     "\nReceived HMAC: " + ack_dc.payload_hmac()
                 );

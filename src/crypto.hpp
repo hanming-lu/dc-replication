@@ -38,6 +38,8 @@ private:
     /* for Server HMAC*/
     const char *s_hmac_key = "s_hmac_key";
     unsigned int s_klen = 11;
+
+    std::string b2a_hex(const std::uint8_t *p, std::size_t n);
     
 };
 

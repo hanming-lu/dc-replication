@@ -13,6 +13,7 @@ public:
     ClientComm(std::string ip, int64_t client_id, DC_Client *dc_client);
 
     void mcast_dc(std::string &msg);
+    void send_dc_proxy(std::string &msg);
     void send_get_req(std::string &msg);
     void run_dc_client_listen_server();
 

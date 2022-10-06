@@ -118,7 +118,7 @@ int DC_Client::client_send_base_run()
 #if OUTGOING_MODE == 1 or OUTGOING_MODE == 2
         sign_dc(&dummy_dc, &this->crypto);
 #elif OUTGOING_MODE == 3
-        std::string c_digest = c_hmac_sha256(
+        std::string c_digest = crypto.c_hmac_sha256(
             dummy_dc.payload_in_transit().c_str(), 
             dummy_dc.payload_in_transit().length());
         dummy_dc.set_payload_hmac(c_digest);

@@ -28,12 +28,14 @@ Comm::Comm(std::string ip, int64_t server_id, bool is_leader, DC_Server *dc_serv
     m_serve_port = std::to_string(NET_SERVE_PORT + server_id);
     m_dc_server = dc_server;
 
+    size_t last = 0;
+    size_t next = 0;
 #if OUTGOING_MODE == 2
     // initialize leader addrs
     std::string leader_ips = NET_LEADER_DC_SERVER_IPs;
     std::string delim = ",";
-    size_t last = 0;
-    size_t next = 0;
+    last = 0;
+    next = 0;
     while ((next = leader_ips.find(delim, last)) != std::string::npos)
     {
         m_leader_dc_server_addrs.push_back(leader_ips.substr(last, next - last) + ":" + m_leader_dc_server_recv_ack_port);
@@ -80,14 +82,14 @@ Comm::Comm(std::string ip, int64_t server_id, bool is_leader, DC_Server *dc_serv
 
 #if OUTGOING_MODE == 3
     // initialize proxy mcast socket
-    std::string proxy_join_mcast_addr = NET_PROXY_IP + ":" + std::to_string(NET_PROXY_RECV_DC_SERVER_JOIN_PORT);
+    std::string proxy_join_mcast_addr = (std::string) NET_PROXY_IP + ":" + std::to_string(NET_PROXY_RECV_DC_SERVER_JOIN_PORT);
     zmq::socket_t *proxy_join_mcast_socket = new zmq::socket_t(m_context, ZMQ_PUSH);
     proxy_join_mcast_socket->connect("tcp://" + proxy_join_mcast_addr);
     send_string(m_addr, proxy_join_mcast_socket);
     Logger::log(LogLevel::DEBUG, "[DC SERVER] connected to proxy for mcast: " + proxy_join_mcast_addr);
 
     // initialize proxy ack socket
-    std::string proxy_ack_addr = NET_PROXY_IP + ":" + std::to_string(NET_PROXY_RECV_ACK_PORT);
+    std::string proxy_ack_addr = (std::string) NET_PROXY_IP + ":" + std::to_string(NET_PROXY_RECV_ACK_PORT);
     m_proxy_ack_socket = new zmq::socket_t(m_context, ZMQ_PUSH);
     m_proxy_ack_socket->connect("tcp://" + proxy_ack_addr);
     Logger::log(LogLevel::DEBUG, "[DC SERVER] connected to proxy for acks: " + proxy_ack_addr);

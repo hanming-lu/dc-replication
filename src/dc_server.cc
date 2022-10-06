@@ -127,18 +127,17 @@ int DC_Server::thread_handle_mcast_msg()
 
 #elif OUTGOING_MODE == 3
         // verify hmac digest
-        std::string s_digest_expected = s_hmac_sha256(
+        std::string s_digest_expected = crypto.s_hmac_sha256(
             in_dc.payload_in_transit().c_str(), 
             in_dc.payload_in_transit().length()
         );
         if (s_digest_expected == in_dc.payload_hmac())
         {
-            Logger::log(LogLevel::DEBUG, "[DC SERVER] Received a write, HMAC verification Successful. Hash: " + ack_dc.hash());
+            Logger::log(LogLevel::DEBUG, "[DC SERVER] Received a write, HMAC verification Successful. Hash: " + in_dc.hash());
         }
         else
         {
-            Logger::log(LogLevel::INFO, "[DC SERVER] Received a write, HMAC verification Failed. " +
-                "Hash: " + in_dc.hash() +
+            Logger::log(LogLevel::INFO, "[DC SERVER] Received a write, HMAC verification Failed, hash: " + in_dc.hash() +
                 "\nExpected HMAC: " + s_digest_expected +
                 "\nReceived HMAC: " + in_dc.payload_hmac()
             );
@@ -216,7 +215,7 @@ int DC_Server::thread_handle_mcast_msg()
 #if OUTGOING_MODE == 1 or OUTGOING_MODE == 2
         sign_dc(&ack_dc, &this->crypto);
 #elif OUTGOING_MODE == 3
-        std::string s_digest = s_hmac_sha256(
+        std::string s_digest = crypto.s_hmac_sha256(
             ack_dc.hash().c_str(), 
             ack_dc.hash().length());
         ack_dc.set_payload_hmac(s_digest);
