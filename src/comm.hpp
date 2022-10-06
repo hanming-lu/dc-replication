@@ -45,6 +45,7 @@ private:
     std::vector<std::string> m_leader_dc_server_addrs;
     std::unordered_map<std::string, zmq::socket_t *> m_pair_dc_server_sockets;
     std::string m_leader_dc_server_recv_ack_port = std::to_string(NET_LEADER_DC_SERVER_RECV_ACK_PORT);
+    zmq::socket_t * m_proxy_ack_socket;
     std::unordered_map<std::string, int> ack_map;
 
     // For mcast

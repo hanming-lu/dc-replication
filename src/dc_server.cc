@@ -34,8 +34,10 @@ int DC_Server::dc_server_run()
     // thread to start leader ack handling
     if (this->is_leader)
     {
+#if OUTGOING_MODE == 2
         /* Leader DC Server */
         task_threads.push_back(std::thread(&DC_Server::thread_leader_handle_ack, this));
+#endif
     }
     else
     {
@@ -50,6 +52,9 @@ int DC_Server::dc_server_run()
 #elif OUTGOING_MODE == 2
         // thread to send acks to leader
         task_threads.push_back(std::thread(&DC_Server::thread_send_ack_to_leader, this));
+#elif OUTGOING_MODE == 3
+        // thread to send acks to in-enclave proxy
+        task_threads.push_back(std::thread(&DC_Server::thread_send_ack_to_proxy, this));
 #endif
         // thread to handle get request from client
         task_threads.push_back(std::thread(&DC_Server::thread_handle_serve_request_msg, this));
@@ -115,6 +120,31 @@ int DC_Server::thread_handle_mcast_msg()
 
         if (in_dc.prevhash() == "")
             continue;
+
+#if OUTGOING_MODE == 1 or OUTGOING_MODE == 2
+        verify_dc(&in_dc, &this->crypto);
+        in_dc.set_verified(true);
+
+#elif OUTGOING_MODE == 3
+        // verify hmac digest
+        std::string s_digest_expected = s_hmac_sha256(
+            in_dc.payload_in_transit().c_str(), 
+            in_dc.payload_in_transit().length()
+        );
+        if (s_digest_expected == in_dc.payload_hmac())
+        {
+            Logger::log(LogLevel::DEBUG, "[DC SERVER] Received a write, HMAC verification Successful. Hash: " + ack_dc.hash());
+        }
+        else
+        {
+            Logger::log(LogLevel::INFO, "[DC SERVER] Received a write, HMAC verification Failed. " +
+                "Hash: " + in_dc.hash() +
+                "\nExpected HMAC: " + s_digest_expected +
+                "\nReceived HMAC: " + in_dc.payload_hmac()
+            );
+        }
+
+        // periodically verify signature
         bool to_verify = false;
 
         // find parent's unverified count
@@ -131,37 +161,39 @@ int DC_Server::thread_handle_mcast_msg()
         }
         in_dc.set_verified(to_verify);
 
+        // verify signature
+        if (to_verify)
         {
             std::lock_guard<std::mutex> lock(storage_mutex);
-
-            // verify signature
-            if (to_verify)
+            if (verify_dc(&in_dc, &this->crypto) != true)
             {
-                if (verify_dc(&in_dc, &this->crypto) != true)
-                {
-                    Logger::log(LogLevel::INFO, "DataCapsule Record Verification Failed, but stored anyway. Hash: " + in_dc.hash());
-                }
-                else
-                {
-                    Logger::log(LogLevel::DEBUG, "DataCapsule Record Verification Successful. Hash: " + in_dc.hash());
-                }
-
-                // update in_dc's count to 0
-                unverified_count[in_dc.hash()] = 0;
-                // mark chain of parents as verified
-                std::string parent_hash = in_dc.prevhash();
-                capsule::CapsulePDU parent_dc;
-                while (storage.get(parent_hash, &parent_dc))
-                {
-                    if (parent_dc.verified())
-                        break;
-                    Logger::log(LogLevel::DEBUG, "Marking parent as verified. Parent Hash: " + parent_hash);
-                    parent_dc.set_verified(true);
-                    storage.put(&parent_dc);
-                    parent_hash = parent_dc.prevhash();
-                }
+                Logger::log(LogLevel::INFO, "DataCapsule Record Verification Failed, but stored anyway. Hash: " + in_dc.hash());
+            }
+            else
+            {
+                Logger::log(LogLevel::DEBUG, "DataCapsule Record Verification Successful. Hash: " + in_dc.hash());
             }
 
+            in_dc.set_verified(true);
+            // update in_dc's count to 0
+            unverified_count[in_dc.hash()] = 0;
+            // mark chain of parents as verified
+            std::string parent_hash = in_dc.prevhash();
+            capsule::CapsulePDU parent_dc;
+            while (storage.get(parent_hash, &parent_dc))
+            {
+                if (parent_dc.verified())
+                    break;
+                Logger::log(LogLevel::DEBUG, "Marking parent as verified. Parent Hash: " + parent_hash);
+                parent_dc.set_verified(true);
+                storage.put(&parent_dc);
+                parent_hash = parent_dc.prevhash();
+            }
+        }
+#endif
+        {
+            std::lock_guard<std::mutex> lock(storage_mutex);
+        
             // Append the record to the chain
             bool succ = storage.put(&in_dc);
             if (!succ)
@@ -181,7 +213,14 @@ int DC_Server::thread_handle_mcast_msg()
         ack_dc.set_hash(in_dc.hash());
         ack_dc.set_msgtype(REPLICATION_ACK);
         ack_dc.set_replyaddr(in_dc.replyaddr());
+#if OUTGOING_MODE == 1 or OUTGOING_MODE == 2
         sign_dc(&ack_dc, &this->crypto);
+#elif OUTGOING_MODE == 3
+        std::string s_digest = s_hmac_sha256(
+            ack_dc.hash().c_str(), 
+            ack_dc.hash().length());
+        ack_dc.set_payload_hmac(s_digest);
+#endif
         std::string ack_msg;
         ack_dc.SerializeToString(&ack_msg);
 
@@ -262,6 +301,14 @@ int DC_Server::thread_send_ack_to_leader()
 {
     Logger::log(LogLevel::DEBUG, "thread_send_ack_to_leader() running, dc server #" + std::to_string(this->server_id));
     comm.run_dc_server_send_ack_to_leader();
+
+    return 0;
+}
+
+int DC_Server::thread_send_ack_to_proxy()
+{
+    Logger::log(LogLevel::DEBUG, "thread_send_ack_to_proxy() running, dc server #" + std::to_string(this->server_id));
+    comm.run_dc_server_send_ack_to_proxy();
 
     return 0;
 }

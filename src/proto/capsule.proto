@@ -16,5 +16,6 @@ message CapsulePDU {
 
   optional int64 msgLen = 8; // length of payload, pre-encryption
   optional string replyAddr = 9; // to send ack
+  optional string payload_hmac = 10; // to use hmac
   optional bool verified = 4001; // the record is verified or not
 }
