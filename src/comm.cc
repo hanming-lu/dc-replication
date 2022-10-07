@@ -22,17 +22,20 @@ Comm::Comm(std::string ip, int64_t server_id, bool is_leader, DC_Server *dc_serv
 {
     m_ip = ip;
     m_port = (is_leader) ? std::to_string(NET_LEADER_DC_SERVER_RECV_ACK_PORT) : std::to_string(NET_DC_SERVER_BASE_PORT + server_id);
-    m_addr = "tcp://" + m_ip + ":" + m_port;
+    m_addr = m_ip + ":" + m_port;
     m_pairing_port = std::to_string(NET_DC_SERVER_PAIRING_BASE_PORT + server_id);
     m_pairing_addr = m_ip + ":" + m_pairing_port;
     m_serve_port = std::to_string(NET_SERVE_PORT + server_id);
     m_dc_server = dc_server;
 
+    size_t last = 0;
+    size_t next = 0;
+#if OUTGOING_MODE == 2
     // initialize leader addrs
     std::string leader_ips = NET_LEADER_DC_SERVER_IPs;
     std::string delim = ",";
-    size_t last = 0;
-    size_t next = 0;
+    last = 0;
+    next = 0;
     while ((next = leader_ips.find(delim, last)) != std::string::npos)
     {
         m_leader_dc_server_addrs.push_back(leader_ips.substr(last, next - last) + ":" + m_leader_dc_server_recv_ack_port);
@@ -41,6 +44,7 @@ Comm::Comm(std::string ip, int64_t server_id, bool is_leader, DC_Server *dc_serv
     m_leader_dc_server_addrs.push_back(leader_ips.substr(last) + ":" + m_leader_dc_server_recv_ack_port);
 
     Logger::log(LogLevel::DEBUG, "[DC SERVER] Number of collectors: " + std::to_string(m_leader_dc_server_addrs.size()));
+#endif
 
     // initialize pairing addrs and sockets
     std::string pair_ips = NET_PAIRING_DC_SERVER_IPs;
@@ -75,9 +79,25 @@ Comm::Comm(std::string ip, int64_t server_id, bool is_leader, DC_Server *dc_serv
     }
 
     Logger::log(LogLevel::DEBUG, "[DC SERVER] Number of pairing destinations: " + std::to_string(m_pair_dc_server_sockets.size()));
+
+#if OUTGOING_MODE == 3
+    // initialize proxy mcast socket
+    std::string proxy_join_mcast_addr = (std::string) NET_PROXY_IP + ":" + std::to_string(NET_PROXY_RECV_DC_SERVER_JOIN_PORT);
+    zmq::socket_t *proxy_join_mcast_socket = new zmq::socket_t(m_context, ZMQ_PUSH);
+    proxy_join_mcast_socket->connect("tcp://" + proxy_join_mcast_addr);
+    send_string(m_addr, proxy_join_mcast_socket);
+    Logger::log(LogLevel::DEBUG, "[DC SERVER] connected to proxy for mcast: " + proxy_join_mcast_addr);
+
+    // initialize proxy ack socket
+    std::string proxy_ack_addr = (std::string) NET_PROXY_IP + ":" + std::to_string(NET_PROXY_RECV_ACK_PORT);
+    m_proxy_ack_socket = new zmq::socket_t(m_context, ZMQ_PUSH);
+    m_proxy_ack_socket->connect("tcp://" + proxy_ack_addr);
+    Logger::log(LogLevel::DEBUG, "[DC SERVER] connected to proxy for acks: " + proxy_ack_addr);
+#endif
+
 }
 
-void Comm::run_leader_dc_server_handle_ack_opt1()
+void Comm::run_leader_dc_server_handle_ack_opt1() // only run when OUTGOING_MODE == 2
 {
     /* 
     Client recv optimization #1 - one ack:
@@ -155,12 +175,6 @@ void Comm::run_dc_server_listen_mcast_and_client()
     zmq::socket_t socket_serve_client(m_context, ZMQ_PULL);
     socket_serve_client.bind("tcp://*:" + m_serve_port);
 
-#if INTEGRATED_MODE == true
-    zmq::socket_t socket_join(m_context, ZMQ_PUSH);
-    socket_join.connect("tcp://" + m_seed_server_ip + ":" + m_seed_server_join_port);
-    this->send_string(m_addr, &socket_join);
-#endif
-
     // poll for new messages
     std::vector<zmq::pollitem_t> pollitems = {
         {static_cast<void *>(socket_from_mcast), 0, ZMQ_POLLIN, 0},
@@ -197,7 +211,7 @@ void Comm::run_dc_server_listen_mcast_and_client()
     }
 }
 
-void Comm::run_dc_server_send_ack_to_replyaddr()
+void Comm::run_dc_server_send_ack_to_replyaddr() // only run when OUTGOING_MODE == 1
 {
     std::unordered_map<std::string, zmq::socket_t *> socket_send_ack_map;
 
@@ -234,7 +248,7 @@ void Comm::run_dc_server_send_ack_to_replyaddr()
     }
 }
 
-void Comm::run_dc_server_send_ack_to_leader()
+void Comm::run_dc_server_send_ack_to_leader() // only run when OUTGOING_MODE == 2
 {
     std::vector<zmq::socket_t *> socket_send_ack_l;
     for (auto &addr : m_leader_dc_server_addrs)
@@ -264,6 +278,19 @@ void Comm::run_dc_server_send_ack_to_leader()
     for (auto &socket : socket_send_ack_l)
     {
         delete socket;
+    }
+}
+
+void Comm::run_dc_server_send_ack_to_proxy() // only run when OUTGOING_MODE == 3
+{
+    while (true)
+    {
+        std::string out_msg = this->m_dc_server->ack_q_dequeue();
+        if (out_msg == "")
+            continue;
+
+        this->send_string(out_msg, m_proxy_ack_socket);
+        Logger::log(LogLevel::DEBUG, "[DC SERVER] Sent an ack msg: " + out_msg + " to proxy.");
     }
 }
 

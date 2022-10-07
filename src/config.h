@@ -3,8 +3,7 @@
 
 /**************** Server Config ****************/
 // THESE SHOULD BE TRUE BEFORE COMMIT
-#define INTEGRATED_MODE false
-#define OUTGOING_MODE 2 // 1 = Base Case; 2 = Proxy; 3 = Proxy with HMAC
+#define OUTGOING_MODE 3 // 1 = Base Case; 2 = Proxy; 3 = Proxy with HMAC
 
 // THESE SHOULD BE FALSE BEFORE COMMIT
 #define DEBUG_MODE true
@@ -18,13 +17,14 @@
 #define NET_DC_SERVER_BASE_PORT 4001
 #define NET_DC_SERVER_PAIRING_BASE_PORT 4500
 
-// For mcast networking
-#define NET_SEED_ROUTER_IP "localhost"
-#define NET_SERVER_JOIN_PORT 6666
-#define NET_SERVER_MCAST_PORT 6667
-
 // For serving get request from clients
 #define NET_SERVE_PORT 4300
+
+// For in-enclave proxy networking
+#define NET_PROXY_IP "localhost"
+#define NET_PROXY_RECV_DC_SERVER_JOIN_PORT 3001
+#define NET_PROXY_RECV_WRITE_REQ_PORT 3002
+#define NET_PROXY_RECV_ACK_PORT 3003
 
 // Global Config
 #define VERIFY_SIG_PER_WRITES 5

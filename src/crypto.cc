@@ -2,6 +2,7 @@
 #include <openssl/ec.h>
 #include <openssl/dsa.h>
 #include <openssl/aes.h>
+#include <openssl/hmac.h>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -171,4 +172,42 @@ std::string Crypto::decrypt_message(const std::string &enc_msg, const size_t ori
     std::string dec_msg_s((char *)dec_out);
 
     return dec_msg_s;
+}
+
+std::string Crypto::b2a_hex(const std::uint8_t *p, std::size_t n)
+{
+    static const char hex[] = "0123456789abcdef";
+    std::string res;
+    res.reserve(n * 2);
+
+    for (auto end = p + n; p != end; ++p)
+    {
+        const std::uint8_t v = (*p);
+        res += hex[(v >> 4) & 0x0F];
+        res += hex[v & 0x0F];
+    }
+
+    return res;
+}
+
+std::string Crypto::c_hmac_sha256(
+    const char *data, unsigned int dlen)
+{
+    unsigned char digest[EVP_MAX_MD_SIZE];
+    unsigned int dilen;
+    ::HMAC(
+        ::EVP_sha256(), c_hmac_key, c_klen, (unsigned char *)data, dlen, digest, &dilen);
+
+    return b2a_hex(digest, dilen);
+}
+
+std::string Crypto::s_hmac_sha256(
+    const char *data, unsigned int dlen)
+{
+    unsigned char digest[EVP_MAX_MD_SIZE];
+    unsigned int dilen;
+    ::HMAC(
+        ::EVP_sha256(), s_hmac_key, s_klen, (unsigned char *)data, dlen, digest, &dilen);
+
+    return b2a_hex(digest, dilen);
 }

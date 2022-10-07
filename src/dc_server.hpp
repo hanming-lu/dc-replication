@@ -74,6 +74,8 @@ private:
     int thread_send_ack_to_replyaddr();
     // For collector acks
     int thread_send_ack_to_leader();
+    // For send acks to proxy
+    int thread_send_ack_to_proxy();
     // For anti-entropy pairing
     int thread_initiate_pairing();
     int thread_listen_pairing_msg();

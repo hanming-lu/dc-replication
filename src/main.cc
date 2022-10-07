@@ -46,10 +46,13 @@ int main(int argc, char *argv[])
     3. wait for 10s and start client
     */
     std::vector<std::thread> server_threads;
+
+#if OUTGOING_MODE == 2
     if (HAS_LEADER_LOCAL)
     {
         server_threads.push_back(std::thread(thread_dc_server, LEADER_ID_LOCAL, /* is_leader */ true));
     }
+#endif
 
     for (int64_t id = INIT_DC_SERVER_ID; id < LOCAL_DC_SERVER_COUNT + INIT_DC_SERVER_ID; id++)
     {

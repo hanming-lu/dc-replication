@@ -22,6 +22,7 @@ public:
     void run_dc_server_listen_mcast_and_client();
     void run_dc_server_send_ack_to_replyaddr();
     void run_dc_server_send_ack_to_leader();
+    void run_dc_server_send_ack_to_proxy();
     void run_dc_server_send_serve_resp();
 
     /* anti-entropy pairing */
@@ -45,12 +46,8 @@ private:
     std::vector<std::string> m_leader_dc_server_addrs;
     std::unordered_map<std::string, zmq::socket_t *> m_pair_dc_server_sockets;
     std::string m_leader_dc_server_recv_ack_port = std::to_string(NET_LEADER_DC_SERVER_RECV_ACK_PORT);
+    zmq::socket_t * m_proxy_ack_socket;
     std::unordered_map<std::string, int> ack_map;
-
-    // For mcast
-    std::string m_seed_server_ip = NET_SEED_ROUTER_IP;
-    std::string m_seed_server_join_port = std::to_string(NET_SERVER_JOIN_PORT);
-    std::string m_seed_server_mcast_port = std::to_string(NET_SERVER_MCAST_PORT);
 
     zmq::message_t string_to_message(const std::string &s)
     {

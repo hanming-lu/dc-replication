@@ -12,7 +12,8 @@ class ClientComm
 public:
     ClientComm(std::string ip, int64_t client_id, DC_Client *dc_client);
 
-    void send_dc(std::string &msg);
+    void mcast_dc(std::string &msg);
+    void send_dc_proxy(std::string &msg);
     void send_get_req(std::string &msg);
     void run_dc_client_listen_server();
 
@@ -25,6 +26,7 @@ public:
     zmq::context_t m_context;
     std::unordered_map<std::string, zmq::socket_t *> m_dc_server_dc_sockets;
     std::unordered_map<std::string, zmq::socket_t *> m_dc_server_serve_sockets;
+    zmq::socket_t *m_proxy_write_socket;
     std::unordered_map<std::string, int> m_recv_ack_map;
 
     zmq::message_t string_to_message(const std::string &s)
