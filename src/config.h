@@ -17,11 +17,6 @@
 #define NET_DC_SERVER_BASE_PORT 4001
 #define NET_DC_SERVER_PAIRING_BASE_PORT 4500
 
-// For mcast networking
-#define NET_SEED_ROUTER_IP "localhost"
-#define NET_SERVER_JOIN_PORT 6666
-#define NET_SERVER_MCAST_PORT 6667
-
 // For serving get request from clients
 #define NET_SERVE_PORT 4300
 

@@ -49,11 +49,6 @@ private:
     zmq::socket_t * m_proxy_ack_socket;
     std::unordered_map<std::string, int> ack_map;
 
-    // For mcast
-    std::string m_seed_server_ip = NET_SEED_ROUTER_IP;
-    std::string m_seed_server_join_port = std::to_string(NET_SERVER_JOIN_PORT);
-    std::string m_seed_server_mcast_port = std::to_string(NET_SERVER_MCAST_PORT);
-
     zmq::message_t string_to_message(const std::string &s)
     {
         zmq::message_t msg(s.size());

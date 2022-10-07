@@ -22,7 +22,7 @@ Comm::Comm(std::string ip, int64_t server_id, bool is_leader, DC_Server *dc_serv
 {
     m_ip = ip;
     m_port = (is_leader) ? std::to_string(NET_LEADER_DC_SERVER_RECV_ACK_PORT) : std::to_string(NET_DC_SERVER_BASE_PORT + server_id);
-    m_addr = "tcp://" + m_ip + ":" + m_port;
+    m_addr = m_ip + ":" + m_port;
     m_pairing_port = std::to_string(NET_DC_SERVER_PAIRING_BASE_PORT + server_id);
     m_pairing_addr = m_ip + ":" + m_pairing_port;
     m_serve_port = std::to_string(NET_SERVE_PORT + server_id);
