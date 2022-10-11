@@ -353,7 +353,7 @@ void Comm::run_dc_server_listen_pairing_msg()
             // Put request/response to pairing_q
             this->m_dc_server->pairing_q_enqueue(msg);
 
-            Logger::log(LogLevel::DEBUG, "[DC Pairing] Received & put a pairing request/response: " + msg);
+            Logger::log(LogLevel::INFO, "[DC Pairing] Received & put a pairing request/response: " + msg);
         }
     }
 }

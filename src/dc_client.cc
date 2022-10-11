@@ -29,6 +29,7 @@ int DC_Client::dc_client_run()
      3. decrypt and verify all acks
     */
     task_threads.push_back(std::thread(&DC_Client::thread_listen_server, this));
+#if DEBUG_MODE
     /* 
     Client send base case:
      1. create several dummy dc's
@@ -44,6 +45,7 @@ int DC_Client::dc_client_run()
     */
     std::this_thread::sleep_for(std::chrono::seconds(10)); // wait for put to finish
     task_threads.push_back(std::thread(&DC_Client::client_get_req_run, this));
+#endif
 
     /*
     (DONE) 
@@ -100,38 +102,13 @@ int DC_Client::client_send_base_run()
      2. sign and encrypt the dc's
      3. send dc's via network to all dc servers
     */
-    std::string cur_prevHash = "init";
-    int test_sender = 001;
+    
     int count = 0;
+    std::string dummy_payload = "dummy_payload";
     for (int i = 0; i < 10; i++)
     {
-        capsule::CapsulePDU dummy_dc;
-        std::string payload = "dummy_payload";
-        std::string enc_payload = crypto.encrypt_message(payload);
-        dummy_dc.set_payload_in_transit(enc_payload);
-        dummy_dc.set_sender(test_sender);
-        dummy_dc.set_prevhash(cur_prevHash);
-        dummy_dc.set_msglen(payload.length());
-        dummy_dc.set_replyaddr(client_comm.m_recv_ack_addr);
-        cur_prevHash = std::to_string(count++);
-        dummy_dc.set_hash(cur_prevHash);
-#if OUTGOING_MODE == 1 or OUTGOING_MODE == 2
-        sign_dc(&dummy_dc, &this->crypto);
-#elif OUTGOING_MODE == 3
-        std::string c_digest = crypto.c_hmac_sha256(
-            dummy_dc.payload_in_transit().c_str(), 
-            dummy_dc.payload_in_transit().length());
-        dummy_dc.set_payload_hmac(c_digest);
-#endif
-        std::string dummy_msg;
-        dummy_dc.SerializeToString(&dummy_msg);
-
-        Logger::log(LogLevel::DEBUG, "[DC Client] Putting a dc to client_comm: " + dummy_msg);
-#if OUTGOING_MODE == 1 or OUTGOING_MODE == 2
-        client_comm.mcast_dc(dummy_msg);
-#elif OUTGOING_MODE == 3
-        client_comm.send_dc_proxy(dummy_msg);
-#endif
+        put(std::to_string(count), dummy_payload);
+        count++;
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
@@ -146,18 +123,59 @@ int DC_Client::client_get_req_run()
      2. send dc's via network to a random dc server
     */
 
-    for (int i = 0; i < 5; i++) 
+    for (int i = 1; i < 6; i++) 
     {
-        capsule::ClientGetRequest in_req;
-        in_req.set_hash(std::to_string(i));
-        in_req.set_replyaddr(client_comm.m_recv_get_resp_addr);
-        std::string msg;
-        in_req.SerializeToString(&msg);
-
-        Logger::log(LogLevel::DEBUG, "[DC Client] Sending a get req to client_comm for hash: " + in_req.hash());
-        client_comm.send_get_req(msg);
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        get(std::to_string(i));
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
     return 0;
+}
+
+void DC_Client::put(std::string hash, std::string payload)
+{
+    /*
+    Constructs a dc:
+    1. hash = hash
+    2. payload_in_transit = encrypt_message(payload)
+    */
+    capsule::CapsulePDU out_dc;
+    std::string enc_payload = crypto.encrypt_message(payload);
+    out_dc.set_payload_in_transit(enc_payload);
+    out_dc.set_sender(1);
+    out_dc.set_prevhash(m_prev_hash);
+    out_dc.set_msglen(payload.length());
+    out_dc.set_replyaddr(client_comm.m_recv_ack_addr);
+    out_dc.set_hash(hash);
+
+    m_prev_hash = hash;
+    
+#if OUTGOING_MODE == 1 or OUTGOING_MODE == 2
+    sign_dc(&out_dc, &this->crypto);
+#elif OUTGOING_MODE == 3
+    std::string c_digest = crypto.c_hmac_sha256(
+        out_dc.payload_in_transit().c_str(), 
+        out_dc.payload_in_transit().length());
+    out_dc.set_payload_hmac(c_digest);
+#endif
+
+    std::string out_msg;
+    out_dc.SerializeToString(&out_msg);
+
+#if OUTGOING_MODE == 1 or OUTGOING_MODE == 2
+    client_comm.mcast_dc(out_msg);
+#elif OUTGOING_MODE == 3
+    client_comm.send_dc_proxy(out_msg);
+#endif
+}
+
+void DC_Client::get(std::string hash)
+{
+    capsule::ClientGetRequest out_req;
+    out_req.set_hash(hash);
+    out_req.set_replyaddr(client_comm.m_recv_get_resp_addr);
+    std::string out_msg;
+    out_req.SerializeToString(&out_msg);
+
+    client_comm.send_get_req(out_msg);
 }

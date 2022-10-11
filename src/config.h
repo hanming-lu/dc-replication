@@ -3,7 +3,7 @@
 
 /**************** Server Config ****************/
 // THESE SHOULD BE TRUE BEFORE COMMIT
-#define OUTGOING_MODE 3 // 1 = Base Case; 2 = Proxy; 3 = Proxy with HMAC
+#define OUTGOING_MODE 1 // 1 = Base Case; 2 = Proxy; 3 = Proxy with HMAC
 
 // THESE SHOULD BE FALSE BEFORE COMMIT
 #define DEBUG_MODE true

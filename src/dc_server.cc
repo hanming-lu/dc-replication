@@ -349,7 +349,7 @@ int DC_Server::thread_initiate_pairing()
         // if no need to pair, continue
         if (!storage.get_record_missing())
             continue;
-        Logger::log(LogLevel::DEBUG, "DC Server initiates pairing: " + std::to_string(server_id));
+        Logger::log(LogLevel::INFO, "DC Server initiates pairing: " + std::to_string(server_id));
 
         // get digest (i.e. sources and sinks) from storage
         std::unordered_set<std::string> &sources = storage.get_sources();
