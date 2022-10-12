@@ -386,7 +386,6 @@ int DC_Server::thread_handle_pairing_msg()
         std::string in_msg_s = pairing_q_dequeue();
         if (in_msg_s == "")
         {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
             continue;
         }
 

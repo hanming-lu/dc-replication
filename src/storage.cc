@@ -60,15 +60,15 @@ bool Storage::put(const capsule::CapsulePDU *dc)
 
     if (!status.ok())
     {
-        Logger::log(LogLevel::ERROR, "[Put] Put in DB FAILED, hash: " + dc->hash() + " value: " + serialized_dc);
+        Logger::log(LogLevel::ERROR, "[Storage] Put in DB FAILED, hash: " + dc->hash() + " value: " + serialized_dc);
         return false;
     }
 
-    Logger::log(LogLevel::DEBUG, "[Put] Put in DB Done, hash: " + dc->hash() + " value: " + serialized_dc);
+    Logger::log(LogLevel::DEBUG, "[Storage] Put in DB Done, hash: " + dc->hash() + " value: " + serialized_dc);
 
     // update reverse_map, sources, sinks, record_missing
     update_internal_state(dc->hash(), dc->prevhash());
-    Logger::log(LogLevel::DEBUG, "[Put] state updated, hash: " + dc->hash());
+    Logger::log(LogLevel::DEBUG, "[Storage] state updated, hash: " + dc->hash());
 
     return true;
 }
@@ -79,7 +79,7 @@ bool Storage::update_internal_state(const std::string &hash,
 {
     /* update reverse_map */
     reverse_map.emplace(prevhash, hash);
-    Logger::log(LogLevel::DEBUG, "<prevhash,hash> added to reverse_map: " + prevhash + " " + hash);
+    Logger::log(LogLevel::DEBUG, "[Storage] added to reverse_map, prevhash: " + prevhash + ", hash: " + hash);
 
     /* update sources */
     // add dc itself if it is not a parent
@@ -87,7 +87,7 @@ bool Storage::update_internal_state(const std::string &hash,
     if (it_m == reverse_map.end())
     {
         sources.insert(hash);
-        Logger::log(LogLevel::DEBUG, "Hash added to sources: " + hash);
+        Logger::log(LogLevel::DEBUG, "[Storage] Hash added to sources: " + hash);
     }
 
     // remove dc's parent
@@ -95,7 +95,7 @@ bool Storage::update_internal_state(const std::string &hash,
     if (it_s != sources.end())
     {
         sources.erase(it_s);
-        Logger::log(LogLevel::DEBUG, "Hash removed from sources: " + prevhash);
+        Logger::log(LogLevel::DEBUG, "[Storage] Hash removed from sources: " + prevhash);
     }
 
     /* update sinks */
@@ -104,7 +104,7 @@ bool Storage::update_internal_state(const std::string &hash,
     for (auto it = it_range.first; it != it_range.second; ++it)
     {
         sinks.erase(it->second);
-        Logger::log(LogLevel::DEBUG, "Hash removed from sinks: " + it->second);
+        Logger::log(LogLevel::DEBUG, "[Storage] Hash removed from sinks: " + it->second);
     }
 
     // add if dc is a sink
@@ -114,12 +114,12 @@ bool Storage::update_internal_state(const std::string &hash,
     if (!status.ok() || status.IsNotFound())
     {
         // no parent, add dc to sinks
-        Logger::log(LogLevel::DEBUG, "Hash added to sinks: " + hash);
+        Logger::log(LogLevel::DEBUG, "[Storage] Hash added to sinks: " + hash);
         sinks.insert(hash);
         /* update record missing */
         if (update_record_missing && prevhash != "init")
         {
-            Logger::log(LogLevel::DEBUG, "Record missing: " + prevhash);
+            Logger::log(LogLevel::DEBUG, "[Storage] Record missing: " + prevhash);
             set_record_missing(true);
         }
     }
@@ -135,23 +135,23 @@ bool Storage::get(const std::string &key, capsule::CapsulePDU *dc)
 
     if (status.ok() && !status.IsNotFound())
     {
-        Logger::log(LogLevel::DEBUG, "[Get] Done, key: " + key + " value: " + serialized_dc);
+        Logger::log(LogLevel::DEBUG, "[Storage] Done, key: " + key + " value: " + serialized_dc);
         dc->ParseFromString(serialized_dc);
         return true;
     }
     else if (status.IsNotFound())
     {
-        Logger::log(LogLevel::DEBUG, "[Get] Key does not exist: " + key);
+        Logger::log(LogLevel::DEBUG, "[Storage] Key does not exist: " + key);
         if (key != "init")
         {
-            Logger::log(LogLevel::DEBUG, "Record missing: " + dc->prevhash());
+            Logger::log(LogLevel::DEBUG, "[Storage] Record missing: " + dc->prevhash());
             set_record_missing(true);
         }
         return false;
     }
     else
     {
-        Logger::log(LogLevel::ERROR, "[Get] FAILED, key: " + key);
+        Logger::log(LogLevel::ERROR, "[Storage] FAILED, key: " + key);
         return false;
     }
 }
@@ -183,12 +183,11 @@ void Storage::get_pairing_result(
         if (sources.find(src_s) != sources.end())
             continue;
         add_ahead_q.emplace(src_s);
-        Logger::log(LogLevel::DEBUG, "add_ahead_q.emplace(src_s): " + src_s);
     }
 
     add_records_ahead(add_ahead_q, req_sources, req_sinks, records_to_return, records_to_return_hash);
 
-    Logger::log(LogLevel::DEBUG, "after add ahead of sources - records_to_return hashs: " +
+    Logger::log(LogLevel::DEBUG, "[Storage] after add ahead of sources - records_to_return hashs: " +
                                      std::accumulate(std::begin(records_to_return_hash),
                                                      std::end(records_to_return_hash),
                                                      std::string{},
@@ -207,11 +206,10 @@ void Storage::get_pairing_result(
         if (sinks.find(sk_s) != sinks.end())
             continue;
         add_after_q.emplace(sk_s);
-        Logger::log(LogLevel::DEBUG, "add_after_q.emplace(sk_s): " + sk_s);
     }
 
     add_records_after(add_after_q, req_sources, req_sinks, records_to_return, records_to_return_hash);
-    Logger::log(LogLevel::DEBUG, "after add after sinks - records_to_return hashs: " +
+    Logger::log(LogLevel::DEBUG, "[Storage] after add after sinks - records_to_return hashs: " +
                                      std::accumulate(std::begin(records_to_return_hash),
                                                      std::end(records_to_return_hash),
                                                      std::string{},
@@ -257,7 +255,7 @@ void Storage::get_pairing_result(
     // Add records after
     add_records_after(add_connected_q, req_sources, req_sinks, records_to_return, records_to_return_hash);
 
-    Logger::log(LogLevel::DEBUG, "after add connected - records_to_return hashs: " +
+    Logger::log(LogLevel::DEBUG, "[Storage] after add connected - records_to_return hashs: " +
                                      std::accumulate(std::begin(records_to_return_hash),
                                                      std::end(records_to_return_hash),
                                                      std::string{},
@@ -290,7 +288,7 @@ void Storage::add_records_ahead(
             rocksdb::ReadOptions(), next, &next_dc_serialized);
         if (!status.ok() || status.IsNotFound())
         {
-            Logger::log(LogLevel::DEBUG, "Record missing: " + next);
+            Logger::log(LogLevel::DEBUG, "[Storage] Record missing: " + next);
             set_record_missing(true);
             continue;
         }
@@ -334,7 +332,7 @@ void Storage::add_records_after(
             rocksdb::ReadOptions(), next, &next_dc_serialized);
         if (!status.ok() || status.IsNotFound())
         {
-            Logger::log(LogLevel::DEBUG, "Record missing: " + next);
+            Logger::log(LogLevel::DEBUG, "[Storage] Record missing: " + next);
             set_record_missing(true);
             continue;
         }

@@ -29,7 +29,8 @@ int DC_Client::dc_client_run()
      3. decrypt and verify all acks
     */
     task_threads.push_back(std::thread(&DC_Client::thread_listen_server, this));
-#if DEBUG_MODE
+
+#if TEST_MODE
     /* 
     Client send base case:
      1. create several dummy dc's
@@ -45,6 +46,10 @@ int DC_Client::dc_client_run()
     */
     std::this_thread::sleep_for(std::chrono::seconds(10)); // wait for put to finish
     task_threads.push_back(std::thread(&DC_Client::client_get_req_run, this));
+#endif
+
+#if BENCHMARK_MODE
+    task_threads.push_back(std::thread(&DC_Client::benchmark_run, this));
 #endif
 
     /*
@@ -131,6 +136,12 @@ int DC_Client::client_get_req_run()
 
     return 0;
 }
+
+#if BENCHMARK_MODE
+#include "benchmark.h"
+#else
+void DC_Client::benchmark_run(){}
+#endif // BENCHMARK_MODE
 
 void DC_Client::put(std::string hash, std::string payload)
 {

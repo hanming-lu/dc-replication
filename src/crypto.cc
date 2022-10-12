@@ -42,7 +42,7 @@ Crypto::Crypto()
         throw;
     }
 
-    Logger::log(LogLevel::INFO, "[Crypto] PKey Generation Successful");
+    Logger::log(LogLevel::DEBUG, "[Crypto] PKey Generation Successful");
 
     // Initiate MD CTX
     if (!(this->md = EVP_MD_CTX_create()))
@@ -65,29 +65,30 @@ Crypto::~Crypto()
 }
 
 std::string Crypto::sign_message(const std::string &msg)
-{
+{   
+    EVP_MD_CTX_reset(this->md);
     if (EVP_DigestSignInit(this->md, NULL, EVP_sha256(), NULL, this->pkey) != 1)
     {
-        Logger::log(LogLevel::ERROR, "[Crypto] Sign ERROR");
+        Logger::log(LogLevel::ERROR, "[Crypto] Sign ERROR 1");
         throw;
     }
 
     if (EVP_DigestSignUpdate(this->md, msg.data(), msg.size()) != 1)
     {
-        Logger::log(LogLevel::ERROR, "[Crypto] Sign ERROR");
+        Logger::log(LogLevel::ERROR, "[Crypto] Sign ERROR 2");
         throw;
     }
     size_t s_len;
     if (EVP_DigestSignFinal(this->md, NULL, &s_len) != 1)
     { // Segfault here
-        Logger::log(LogLevel::ERROR, "[Crypto] Sign ERROR");
+        Logger::log(LogLevel::ERROR, "[Crypto] Sign ERROR 3");
         throw;
     }
 
     std::vector<unsigned char> signature(s_len);
     if (EVP_DigestSignFinal(this->md, signature.data(), &s_len) != 1)
     { // or here (or both)
-        Logger::log(LogLevel::ERROR, "[Crypto] Sign ERROR");
+        Logger::log(LogLevel::ERROR, "[Crypto] Sign ERROR 4");
         throw;
     }
     signature.resize(s_len);
