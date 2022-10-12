@@ -13,9 +13,15 @@ public:
 
     int client_send_base_run();
     int client_get_req_run();
+    void benchmark_run();
+
+    void put(std::string hash, std::string payload);
+    void get(std::string hash);
 
     Crypto crypto;
     ClientComm client_comm;
+
+    std::string m_prev_hash = "init";
 };
 
 #endif // __DCCLIENT_H

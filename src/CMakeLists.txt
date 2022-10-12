@@ -44,6 +44,7 @@ set(source_files
     comm.hpp comm.cc
     dc_client.hpp dc_client.cc
     client_comm.hpp client_comm.cc
+    benchmark.h
 )
 
 # Protobuf

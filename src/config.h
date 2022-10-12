@@ -2,11 +2,12 @@
 #define __CONFIG_H
 
 /**************** Server Config ****************/
-// THESE SHOULD BE TRUE BEFORE COMMIT
-#define OUTGOING_MODE 3 // 1 = Base Case; 2 = Proxy; 3 = Proxy with HMAC
+#define OUTGOING_MODE 1 // 1 = Base Case; 2 = Proxy; 3 = Proxy with HMAC
 
 // THESE SHOULD BE FALSE BEFORE COMMIT
-#define DEBUG_MODE true
+#define DEBUG_MODE false // verbose logs
+#define TEST_MODE true // run testing put and get
+#define BENCHMARK_MODE false // run benchmark
 #define INITIATE_EMPTY_DB true // WARNING: IF TRUE, THIS WILL DELETE db_path DB if it already exists
 
 // For leader/follower DC networking
