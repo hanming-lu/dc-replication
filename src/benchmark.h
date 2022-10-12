@@ -3,7 +3,7 @@
 #define BENCHMARK_H
 
 void DC_Client::benchmark_run(){ \
-	 Logger::log(LogLevel::DEBUG, "Load started"); \
+	 Logger::log(LogLevel::INFO, "Load started"); \
 	put("6284781860667377", ":Sg3Ow5-v.6f>Q7)");\
 	put("8517097267634966", "'Uw'.6(&1");\
 	put("1820151046732198", "/M%=,z23$,Gu:W%8");\
@@ -2004,7 +2004,8 @@ void DC_Client::benchmark_run(){ \
 	put("6408915986570119", "#x6%*/Y;!~<I38");\
 	put("8744392766610517", "%Ck6_u($x:G/>N/");\
 	put("6546342200096381", "1?|#*j$_{#!b:,6,");\
-	 Logger::log(LogLevel::DEBUG, "Loaded 2000 entries"); \
+	 Logger::log(LogLevel::INFO, "Loaded 2000 entries"); \
+	put("last_hash", "last_value");\
 }
 
 #endif //BENCHMARK_H

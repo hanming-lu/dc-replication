@@ -162,6 +162,10 @@ void ClientComm::run_dc_client_listen_server()
             m_recv_ack_map[ack_dc.hash()] += 1;
             if (m_recv_ack_map[ack_dc.hash()] == WRITE_THRESHOLD) {
                 Logger::log(LogLevel::DEBUG, "[DC CLIENT] ack message reached quorum for hash: " + ack_dc.hash());
+                if (ack_dc.hash() == "last_hash") {
+                    Logger::log(LogLevel::INFO, "[DC CLIENT] ack message reached quorum for last_hash.");
+                    m_dc_client->get("last_hash");
+                }
             }
 #elif (OUTGOING_MODE == 2 or OUTGOING_MODE == 3)
             // receive acks from proxy
@@ -179,6 +183,9 @@ void ClientComm::run_dc_client_listen_server()
 
             std::string succ = resp.success() ? "true" : "false";
             Logger::log(LogLevel::DEBUG, "[DC CLIENT] Received get response for hash: " + resp.hash() + ", succ: " + succ);
+            if (resp.hash() == "last_hash") {
+                Logger::log(LogLevel::INFO, "[DC CLIENT] Received get response for last_hash, succ: " + succ);
+            }
         }
     }
 }

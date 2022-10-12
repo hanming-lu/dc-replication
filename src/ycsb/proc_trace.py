@@ -14,7 +14,7 @@ def proc_get(line):
     global M_FINAL_SCRIPT
     M_FINAL_SCRIPT += ("\tget(\"{}\");\\\n".format(line[1]))
 
-M_FINAL_SCRIPT += "\t Logger::log(LogLevel::DEBUG, \"Load started\"); \\\n"
+M_FINAL_SCRIPT += "\t Logger::log(LogLevel::INFO, \"Load started\"); \\\n"
 
 counter = 0
 num_times = 1
@@ -27,7 +27,7 @@ with open("./tracea_load_a.txt") as f:
         proc_put(line)
         counter += 1
 
-M_FINAL_SCRIPT += "\t Logger::log(LogLevel::DEBUG, \"Loaded {} entries\"); \\\n".format(counter)
+M_FINAL_SCRIPT += "\t Logger::log(LogLevel::INFO, \"Loaded {} entries\"); \\\n".format(counter)
 
 # counter_put = 0
 # counter_get = 0
@@ -44,8 +44,10 @@ M_FINAL_SCRIPT += "\t Logger::log(LogLevel::DEBUG, \"Loaded {} entries\"); \\\n"
 #             proc_put(line)
 #             counter_get += 1
 
-# M_FINAL_SCRIPT += "\t Logger::log(LogLevel::DEBUG, \"put {} and get {} end\"); \\\n".format(counter_put, counter_get)
+# M_FINAL_SCRIPT += "\t Logger::log(LogLevel::INFO, \"put {} and get {} end\"); \\\n".format(counter_put, counter_get)
 
+
+M_FINAL_SCRIPT += ("\tput(\"{}\", \"{}\");\\\n".format("last_hash", "last_value"))
 M_FINAL_SCRIPT+= '''}
 
 #endif //BENCHMARK_H

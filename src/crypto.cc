@@ -3,6 +3,7 @@
 #include <openssl/dsa.h>
 #include <openssl/aes.h>
 #include <openssl/hmac.h>
+#include <openssl/err.h>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -44,8 +45,14 @@ Crypto::Crypto()
 
     Logger::log(LogLevel::DEBUG, "[Crypto] PKey Generation Successful");
 
-    // Initiate MD CTX
-    if (!(this->md = EVP_MD_CTX_create()))
+    // Initiate MD CTX for sign and verify
+    if (!(this->md_sign = EVP_MD_CTX_create()))
+    {
+        Logger::log(LogLevel::ERROR, "[Crypto] MDCTX Create ERROR");
+        throw;
+    }
+
+    if (!(this->md_verify = EVP_MD_CTX_create()))
     {
         Logger::log(LogLevel::ERROR, "[Crypto] MDCTX Create ERROR");
         throw;
@@ -61,34 +68,41 @@ Crypto::Crypto()
 Crypto::~Crypto()
 {
     EVP_PKEY_free(this->pkey);
-    EVP_MD_CTX_destroy(this->md);
+    EVP_MD_CTX_destroy(this->md_sign);
+    EVP_MD_CTX_destroy(this->md_verify);
 }
 
 std::string Crypto::sign_message(const std::string &msg)
 {   
-    EVP_MD_CTX_reset(this->md);
-    if (EVP_DigestSignInit(this->md, NULL, EVP_sha256(), NULL, this->pkey) != 1)
+    EVP_MD_CTX_reset(this->md_sign);
+    if (EVP_DigestSignInit(this->md_sign, NULL, EVP_sha256(), NULL, this->pkey) != 1)
     {
         Logger::log(LogLevel::ERROR, "[Crypto] Sign ERROR 1");
         throw;
     }
 
-    if (EVP_DigestSignUpdate(this->md, msg.data(), msg.size()) != 1)
+    if (EVP_DigestSignUpdate(this->md_sign, msg.data(), msg.size()) != 1)
     {
         Logger::log(LogLevel::ERROR, "[Crypto] Sign ERROR 2");
         throw;
     }
     size_t s_len;
-    if (EVP_DigestSignFinal(this->md, NULL, &s_len) != 1)
+    if (EVP_DigestSignFinal(this->md_sign, NULL, &s_len) != 1)
     { // Segfault here
-        Logger::log(LogLevel::ERROR, "[Crypto] Sign ERROR 3");
+        Logger::log(LogLevel::ERROR, "[Crypto] Sign ERROR 3, error code: " + (std::string) ERR_reason_error_string(ERR_get_error()) +
+            ", s_len: " + std::to_string(s_len) + 
+            ", msg.size(): " + std::to_string(msg.size()) + 
+            ", msg.data(): " + msg.data());
         throw;
     }
 
     std::vector<unsigned char> signature(s_len);
-    if (EVP_DigestSignFinal(this->md, signature.data(), &s_len) != 1)
+    if (EVP_DigestSignFinal(this->md_sign, signature.data(), &s_len) != 1)
     { // or here (or both)
-        Logger::log(LogLevel::ERROR, "[Crypto] Sign ERROR 4");
+        Logger::log(LogLevel::ERROR, "[Crypto] Sign ERROR 4, error code: " + (std::string) ERR_reason_error_string(ERR_get_error()) +
+            ", s_len: " + std::to_string(s_len) + 
+            ", msg.size(): " + std::to_string(msg.size()) + 
+            ", msg.data(): " + msg.data());
         throw;
     }
     signature.resize(s_len);
@@ -101,19 +115,19 @@ bool Crypto::verify_message(const std::string &msg, const std::string &signature
 {
     std::vector<unsigned char> signature(signature_s.begin(), signature_s.end());
 
-    if (1 != EVP_DigestVerifyInit(this->md, NULL, EVP_sha256(), NULL, this->pkey))
+    if (1 != EVP_DigestVerifyInit(this->md_verify, NULL, EVP_sha256(), NULL, this->pkey))
     {
         Logger::log(LogLevel::ERROR, "[Crypto] Verify ERROR");
         throw;
     }
 
-    if (1 != EVP_DigestVerifyUpdate(this->md, msg.data(), msg.size()))
+    if (1 != EVP_DigestVerifyUpdate(this->md_verify, msg.data(), msg.size()))
     {
         Logger::log(LogLevel::ERROR, "[Crypto] Verify ERROR");
         throw;
     }
 
-    if (1 == EVP_DigestVerifyFinal(this->md, signature.data(), signature.size()))
+    if (1 == EVP_DigestVerifyFinal(this->md_verify, signature.data(), signature.size()))
     {
         /* Success */
         return true;

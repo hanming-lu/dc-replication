@@ -24,7 +24,8 @@ public:
 private:
     /* for sign */
     EVP_PKEY *pkey = NULL;
-    EVP_MD_CTX *md = NULL;
+    EVP_MD_CTX *md_sign = NULL;
+    EVP_MD_CTX *md_verify = NULL;
 
     /* for encryption */
     std::string encrypt_key = "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567";
