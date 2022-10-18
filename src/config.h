@@ -6,7 +6,7 @@
 
 // THESE SHOULD BE FALSE BEFORE COMMIT
 #define DEBUG_MODE false // verbose logs
-#define TEST_MODE true // run testing put and get
+#define TEST_MODE false // run testing put and get
 #define BENCHMARK_MODE false // run benchmark
 #define INITIATE_EMPTY_DB true // WARNING: IF TRUE, THIS WILL DELETE db_path DB if it already exists
 
