@@ -5,7 +5,7 @@ DataCapsule Replication for Paranoid Stateful Lambda (PSL) / Global Data Plane (
 Clone dc-replication repo
 ```
 MY_PROJECT=~/dc-replication
-git clone --recursive https://github.com/hanming-lu/dc-replication.git "${MY_PROJECT}"
+git clone --recursive git@github.com:hanming-lu/dc-replication.git "${MY_PROJECT}"
 ```
 
 Start docker (assuming docker is installed)
