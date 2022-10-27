@@ -33,7 +33,7 @@
 #define WRITE_THRESHOLD 3
 #define REPLICATION_ACK "REPLICATION_ACK"
 #define REPLICATION_ID 4999
-#define PAIRING_TIMEOUT_SEC 5
+#define PAIRING_TIMEOUT_SEC 10
 
 // Local Config for leader
 #define HAS_LEADER_LOCAL true
