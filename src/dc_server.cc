@@ -485,7 +485,7 @@ void DC_Server::handle_pairing_response(const capsule::PairingResponse &resp)
 
     // no longer need to repair for now
     storage.set_record_missing(false);
-    Logger::log(LogLevel::DEBUG, "[DC Pairing] After pairing sources.size(): " +
+    Logger::log(LogLevel::INFO, "[DC Pairing] After pairing sources.size(): " +
                                      std::to_string(storage.get_sources().size()) +
                                      " sinks.size(): " + std::to_string(storage.get_sinks().size()) +
                                      " all_hashes.size(): " + std::to_string(storage.get_all_hashes().size()));
