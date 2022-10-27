@@ -30,6 +30,8 @@ public:
     void send_dc_server_pairing_request(
         std::unordered_set<std::string> &sources,
         std::unordered_set<std::string> &sinks);
+    void send_dc_server_pairing_request_baseline(
+        std::unordered_set<std::string> &hashes);
     void send_dc_server_pairing_response(
         std::vector<capsule::CapsulePDU> &records_to_return,
         const std::string &reply_addr);

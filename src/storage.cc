@@ -77,6 +77,10 @@ bool Storage::update_internal_state(const std::string &hash,
                                     const std::string &prevhash,
                                     const bool update_record_missing)
 {
+    /* update all_hashes */
+    all_hashes.insert(hash);
+    Logger::log(LogLevel::DEBUG, "[Storage] added to all_hashes, hash: " + hash);
+
     /* update reverse_map */
     reverse_map.emplace(prevhash, hash);
     Logger::log(LogLevel::DEBUG, "[Storage] added to reverse_map, prevhash: " + prevhash + ", hash: " + hash);
@@ -153,6 +157,24 @@ bool Storage::get(const std::string &key, capsule::CapsulePDU *dc)
     {
         Logger::log(LogLevel::ERROR, "[Storage] FAILED, key: " + key);
         return false;
+    }
+}
+
+void Storage::get_pairing_result_baseline(
+    std::unordered_set<std::string> &req_hashes,
+    std::vector<capsule::CapsulePDU> &records_to_return)
+{
+    std::string next_dc_serialized;
+    capsule::CapsulePDU next_dc;
+    
+    for (const auto& next: all_hashes) {
+        if (req_hashes.find(next) == req_hashes.end())
+        {
+            rocksdb::Status status = db->Get(
+                rocksdb::ReadOptions(), next, &next_dc_serialized);
+            next_dc.ParseFromString(next_dc_serialized);
+            records_to_return.emplace_back(next_dc);
+        }
     }
 }
 
@@ -358,6 +380,11 @@ std::unordered_set<std::string> &Storage::get_sources()
 std::unordered_set<std::string> &Storage::get_sinks()
 {
     return sinks;
+}
+
+std::unordered_set<std::string> &Storage::get_all_hashes()
+{
+    return all_hashes;
 }
 
 bool Storage::get_record_missing()

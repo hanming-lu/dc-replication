@@ -10,6 +10,8 @@ message PairingRequest {
   repeated string sinks = 2;
 
   optional string replyAddr = 3;
+
+  repeated string hashes = 4; // Used for base line anti-entropy
 }
 
 message PairingResponse {

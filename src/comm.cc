@@ -390,6 +390,35 @@ void Comm::send_dc_server_pairing_request(std::unordered_set<std::string> &sourc
     return;
 }
 
+void Comm::send_dc_server_pairing_request_baseline(std::unordered_set<std::string> &hashes)
+{
+    capsule::PairingWrapperMsg pair_msg;
+    capsule::PairingRequest pair_req;
+    std::string pair_msg_s;
+
+    if (m_pair_dc_server_sockets.size() < 1)
+        return;
+
+    // serialize hashes, reply_addr to PairingRequest
+    *pair_req.mutable_hashes() = {hashes.begin(), hashes.end()};
+    pair_req.set_replyaddr(m_pairing_addr);
+
+    // apply wrapper
+    *pair_msg.mutable_request() = pair_req;
+    pair_msg.SerializeToString(&pair_msg_s);
+
+    // send to a randomly selected pairing server
+    auto it = std::next(
+        std::begin(m_pair_dc_server_sockets),
+        rand() % m_pair_dc_server_sockets.size());
+
+    this->send_string(pair_msg_s, it->second);
+    Logger::log(LogLevel::DEBUG, "[DC Pairing] Sent a pairing request from: " + m_pairing_addr +
+                                     " to: " + it->first + ". Hashes size: " + std::to_string(hashes.size()));
+
+    return;
+}
+
 void Comm::send_dc_server_pairing_response(
     std::vector<capsule::CapsulePDU> &records_to_return,
     const std::string &reply_addr)

@@ -3,6 +3,7 @@
 
 /**************** Server Config ****************/
 #define OUTGOING_MODE 1 // 1 = Base Case; 2 = Proxy; 3 = Proxy with HMAC
+#define ANTI_ENTROPY_MODE 2 // 1 = Base Case; 2 = DAG digest
 
 // THESE SHOULD BE FALSE BEFORE COMMIT
 #define DEBUG_MODE false // verbose logs
@@ -42,6 +43,8 @@
 #define LOCAL_DC_SERVER_COUNT 3
 #define INIT_DC_SERVER_ID 101
 
+// Local Config for DC clients
+#define HAS_LOCAL_DC_CLIENT false
 
 /**************** Client Config ****************/
 #define NET_CLIENT_RECV_ACK_PORT 5001
