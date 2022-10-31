@@ -135,6 +135,8 @@ int DC_Client::client_get_req_run()
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
+    freshness_get();
+
     return 0;
 }
 
@@ -185,6 +187,17 @@ void DC_Client::get(std::string hash)
 {
     capsule::ClientGetRequest out_req;
     out_req.set_hash(hash);
+    out_req.set_replyaddr(client_comm.m_recv_get_resp_addr);
+    std::string out_msg;
+    out_req.SerializeToString(&out_msg);
+
+    client_comm.send_get_req(out_msg);
+}
+
+void DC_Client::freshness_get()
+{
+    capsule::ClientGetRequest out_req;
+    out_req.set_fresh_req(true);
     out_req.set_replyaddr(client_comm.m_recv_get_resp_addr);
     std::string out_msg;
     out_req.SerializeToString(&out_msg);

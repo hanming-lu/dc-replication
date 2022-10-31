@@ -250,25 +250,44 @@ int DC_Server::thread_handle_serve_request_msg()
 
         capsule::ClientGetRequest in_req;
         in_req.ParseFromString(in_msg);
-        
-        std::string hash = in_req.hash();
-        capsule::CapsulePDU dc_to_return;
-        bool succ = storage.get(hash, &dc_to_return);
 
         capsule::ClientGetResponse serve_resp;
-        serve_resp.set_hash(in_req.hash());
-        serve_resp.set_targetaddr(in_req.replyaddr());
 
-        if (!succ)
+        if (in_req.fresh_req())
         {
-            Logger::log(LogLevel::WARNING, "Unable to fetch DC for client. Hash: " + hash);
-            serve_resp.set_success(false);
+            // freshness read request
+            Logger::log(LogLevel::DEBUG, "Received a freshness read request");
+
+            std::unordered_set<std::string> &hashes_to_return = storage.get_sources();
+            Logger::log(LogLevel::DEBUG, "Successfully fetched fresh hashes of size: " + hashes_to_return.size());
+            serve_resp.set_success(true);
+            serve_resp.set_targetaddr(in_req.replyaddr());
+            serve_resp.set_fresh_resp(true);
+            *serve_resp.mutable_fresh_hashes() = {hashes_to_return.begin(), hashes_to_return.end()};
         }
         else
         {
-            Logger::log(LogLevel::DEBUG, "Successfully fetched DC. Hash: " + hash);
-            serve_resp.set_success(true);
-            *serve_resp.mutable_record() = dc_to_return;
+            // hash-based read request
+            Logger::log(LogLevel::DEBUG, "Received a hash-based read request");
+
+            std::string hash = in_req.hash();
+            capsule::CapsulePDU dc_to_return;
+            bool succ = storage.get(hash, &dc_to_return);
+
+            serve_resp.set_hash(in_req.hash());
+            serve_resp.set_targetaddr(in_req.replyaddr());
+
+            if (!succ)
+            {
+                Logger::log(LogLevel::WARNING, "Unable to fetch DC for client. Hash: " + hash);
+                serve_resp.set_success(false);
+            }
+            else
+            {
+                Logger::log(LogLevel::DEBUG, "Successfully fetched DC. Hash: " + hash);
+                serve_resp.set_success(true);
+                *serve_resp.mutable_record() = dc_to_return;
+            }
         }
         
         std::string serve_resp_msg;

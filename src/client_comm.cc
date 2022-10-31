@@ -188,14 +188,18 @@ void ClientComm::run_dc_client_listen_server()
             std::string msg = this->recv_string(&socket_for_get_resp);
             capsule::ClientGetResponse resp;
             resp.ParseFromString(msg);
-
             std::string succ = resp.success() ? "true" : "false";
-            Logger::log(LogLevel::DEBUG, "[DC CLIENT] Received get response for hash: " + resp.hash() + ", succ: " + succ);
+            if (resp.fresh_resp()) {
+                Logger::log(LogLevel::DEBUG, "[DC CLIENT] Received freshness response of size: " + 
+                                                std::to_string(resp.fresh_hashes().size()) + ", succ: " + succ);
+            } else {
+                Logger::log(LogLevel::DEBUG, "[DC CLIENT] Received get response for hash: " + resp.hash() + ", succ: " + succ);
 #if (TEST_MODE or BENCHMARK_MODE)
-            if (resp.hash() == "last_hash") {
-                Logger::log(LogLevel::INFO, "[DC CLIENT] Received get response for last_hash, succ: " + succ);
-            }
+                if (resp.hash() == "last_hash") {
+                    Logger::log(LogLevel::INFO, "[DC CLIENT] Received get response for last_hash, succ: " + succ);
+                }
 #endif // (TEST_MODE or BENCHMARK_MODE)
+            }
         }
     }
 }
