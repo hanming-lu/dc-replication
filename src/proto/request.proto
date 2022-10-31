@@ -9,6 +9,8 @@ message ClientGetRequest {
   optional string hash = 1;
   optional string replyAddr = 2;
 
+  optional bool fresh_req = 3;
+
 }
 
 message ClientGetResponse {
@@ -18,5 +20,8 @@ message ClientGetResponse {
   optional CapsulePDU record = 3;
 
   optional string targetAddr = 4;
+
+  optional bool fresh_resp = 5;
+  repeated string fresh_hashes = 6;
 
 }

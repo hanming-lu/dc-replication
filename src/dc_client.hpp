@@ -17,6 +17,7 @@ public:
 
     void put(std::string hash, std::string payload);
     void get(std::string hash);
+    void freshness_get();
 
     Crypto crypto;
     ClientComm client_comm;
