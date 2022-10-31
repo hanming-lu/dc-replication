@@ -59,8 +59,10 @@ int main(int argc, char *argv[])
         server_threads.push_back(std::thread(thread_dc_server, id, /* is_leader */ false));
     }
 
+#if HAS_LOCAL_DC_CLIENT 
     std::this_thread::sleep_for(std::chrono::seconds(10));
     server_threads.push_back(std::thread(thread_dc_client));
+#endif
 
     // Wait for all server threads to finish
     for (auto &t : server_threads)

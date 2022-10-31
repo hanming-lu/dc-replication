@@ -351,13 +351,22 @@ int DC_Server::thread_initiate_pairing()
             continue;
         Logger::log(LogLevel::INFO, "DC Server initiates pairing: " + std::to_string(server_id));
 
+#if ANTI_ENTROPY_MODE == 1
+        // get all hashes from storage
+        std::unordered_set<std::string> &hashes = storage.get_all_hashes();
+
+        // initiates pairing request by sending over all hashes
+        comm.send_dc_server_pairing_request_baseline(hashes);
+
+#elif ANTI_ENTROPY_MODE == 2
         // get digest (i.e. sources and sinks) from storage
         std::unordered_set<std::string> &sources = storage.get_sources();
         std::unordered_set<std::string> &sinks = storage.get_sinks();
 
         // initiates pairing request by sending over digest
         comm.send_dc_server_pairing_request(sources, sinks);
-
+#endif
+        storage.set_record_missing(false);
         // unlock storage (done by lock_guard)
     }
     return 0;
@@ -413,6 +422,19 @@ void DC_Server::handle_pairing_request(const capsule::PairingRequest &req)
 {
     std::vector<capsule::CapsulePDU> records_to_return;
 
+#if ANTI_ENTROPY_MODE == 1
+    // get req_hashes
+    std::unordered_set<std::string> req_hashes(req.hashes().begin(), req.hashes().end());
+
+    {
+        // lock storage
+        std::lock_guard<std::mutex> lock(storage_mutex);
+
+        // use algo to generate a list of records to return
+        storage.get_pairing_result_baseline(req_hashes, records_to_return);
+    }
+
+#elif ANTI_ENTROPY_MODE == 2
     // get req_sources and req_sinks
     std::unordered_set<std::string> req_sources(req.sources().begin(), req.sources().end());
     std::unordered_set<std::string> req_sinks(req.sinks().begin(), req.sinks().end());
@@ -424,6 +446,7 @@ void DC_Server::handle_pairing_request(const capsule::PairingRequest &req)
         // use algo to generate a list of records to return
         storage.get_pairing_result(req_sources, req_sinks, records_to_return);
     }
+#endif
 
     // return the list using Comm
     comm.send_dc_server_pairing_response(records_to_return, req.replyaddr());
@@ -462,9 +485,10 @@ void DC_Server::handle_pairing_response(const capsule::PairingResponse &resp)
 
     // no longer need to repair for now
     storage.set_record_missing(false);
-    Logger::log(LogLevel::DEBUG, "[DC Pairing] After pairing sources.size(): " +
+    Logger::log(LogLevel::INFO, "[DC Pairing] After pairing sources.size(): " +
                                      std::to_string(storage.get_sources().size()) +
-                                     " sinks.size(): " + std::to_string(storage.get_sinks().size()));
+                                     " sinks.size(): " + std::to_string(storage.get_sinks().size()) +
+                                     " all_hashes.size(): " + std::to_string(storage.get_all_hashes().size()));
 
     return;
 }

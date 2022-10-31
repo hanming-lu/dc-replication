@@ -15,6 +15,7 @@ private:
     std::unordered_multimap<std::string, std::string> reverse_map; // a mapping from <prevhash> to <hash>. Allow lookup by prevhash
     std::unordered_set<std::string> sources;                       // records without incoming links
     std::unordered_set<std::string> sinks;                         // records without outgoing links
+    std::unordered_set<std::string> all_hashes;                    // all record hashes
     bool record_missing;                                           // a missing record is detected or not
 
     // Insert Value Internal
@@ -54,13 +55,21 @@ public:
     // Return the set of sources
     std::unordered_set<std::string> &get_sources();
 
-    // Return the set of sources
+    // Return the set of sinks
     std::unordered_set<std::string> &get_sinks();
+
+    // Return the set of all hashes
+    std::unordered_set<std::string> &get_all_hashes();
 
     // Return pairing result
     void get_pairing_result(
         std::unordered_set<std::string> &req_sources,
         std::unordered_set<std::string> &req_sinks,
+        std::vector<capsule::CapsulePDU> &records_to_return);
+    
+    // Return pairing result baseline
+    void get_pairing_result_baseline(
+        std::unordered_set<std::string> &req_hashes,
         std::vector<capsule::CapsulePDU> &records_to_return);
 
     // Check if pairing needed
