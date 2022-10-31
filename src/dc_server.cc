@@ -366,7 +366,7 @@ int DC_Server::thread_initiate_pairing()
         // initiates pairing request by sending over digest
         comm.send_dc_server_pairing_request(sources, sinks);
 #endif
-
+        storage.set_record_missing(false);
         // unlock storage (done by lock_guard)
     }
     return 0;
