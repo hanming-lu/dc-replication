@@ -16,12 +16,12 @@ message ClientGetRequest {
 message ClientGetResponse {
 
   optional bool success = 1;
-  optional string hash = 2;
+  optional bytes hash = 2;
   optional CapsulePDU record = 3;
 
   optional string targetAddr = 4;
 
   optional bool fresh_resp = 5;
-  repeated string fresh_hashes = 6;
+  repeated bytes fresh_hashes = 6;
 
 }
