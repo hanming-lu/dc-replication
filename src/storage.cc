@@ -10,7 +10,8 @@
 #include "storage.hpp"
 #include "util/logging.hpp"
 
-Storage::Storage(const std::string &db_path)
+Storage::Storage(const std::string &db_path) 
+: crypto(Crypto())
 {
     rocksdb::Options options;
     options.create_if_missing = true;
@@ -35,13 +36,17 @@ Storage::Storage(const std::string &db_path)
     rocksdb::Iterator *it = db->NewIterator(rocksdb::ReadOptions());
     capsule::CapsulePDU dc;
     std::string serialized_dc;
+    std::string serialized_header;
     for (it->SeekToFirst(); it->Valid(); it->Next())
     {
         serialized_dc = it->value().ToString();
         dc.ParseFromString(serialized_dc);
 
         // construct internal state (i.e. reverse_map, sources, sinks)
-        update_internal_state(dc.hash(), dc.prevhash(), /* update_record_missing */ false);
+        
+        dc->header().SerializeToString(&serialized_header);
+        std::string header_hash = crypto.bin_sha256(serialized_header.c_str(), serialized_header.size());
+        update_internal_state(header_hash, dc.header().prevhash(), /* update_record_missing */ false);
     }
     delete it;
 
@@ -52,23 +57,28 @@ Storage::Storage(const std::string &db_path)
 bool Storage::put(const capsule::CapsulePDU *dc)
 {
     // store in rocksdb
-    std::string serialized_dc;
+    std::string serialized_dc, serialized_header;
     dc->SerializeToString(&serialized_dc);
+    dc->header().SerializeToString(&serialized_header);
+    
+    std::string header_hash = crypto.bin_sha256(serialized_header.c_str(), serialized_header.size());
+    if (header_hash.empty())
+        return false;
 
     rocksdb::Status status =
-        db->Put(rocksdb::WriteOptions(), dc->hash(), serialized_dc);
+        db->Put(rocksdb::WriteOptions(), header_hash, serialized_dc);
 
     if (!status.ok())
     {
-        Logger::log(LogLevel::ERROR, "[Storage] Put in DB FAILED, hash: " + dc->hash() + " value: " + serialized_dc);
+        Logger::log(LogLevel::ERROR, "[Storage] Put in DB FAILED, hash: " + header_hash); // + " value: " + serialized_dc);
         return false;
     }
 
-    Logger::log(LogLevel::DEBUG, "[Storage] Put in DB Done, hash: " + dc->hash() + " value: " + serialized_dc);
+    Logger::log(LogLevel::DEBUG, "[Storage] Put in DB Done, hash: " + header_hash); //+ " value: " + serialized_dc);
 
     // update reverse_map, sources, sinks, record_missing
-    update_internal_state(dc->hash(), dc->prevhash());
-    Logger::log(LogLevel::DEBUG, "[Storage] state updated, hash: " + dc->hash());
+    update_internal_state(header_hash, dc->header().prevhash());
+    Logger::log(LogLevel::DEBUG, "[Storage] state updated, hash: " + header_hash);
 
     return true;
 }
@@ -148,7 +158,7 @@ bool Storage::get(const std::string &key, capsule::CapsulePDU *dc)
         Logger::log(LogLevel::DEBUG, "[Storage] Key does not exist: " + key);
         if (key != "init")
         {
-            Logger::log(LogLevel::DEBUG, "[Storage] Record missing: " + dc->prevhash());
+            Logger::log(LogLevel::DEBUG, "[Storage] Record missing: " + dc->header().prevhash());
             set_record_missing(true);
         }
         return false;
@@ -354,7 +364,7 @@ void Storage::add_records_after(
             rocksdb::ReadOptions(), next, &next_dc_serialized);
         if (!status.ok() || status.IsNotFound())
         {
-            Logger::log(LogLevel::DEBUG, "[Storage] Record missing: " + next);
+            Logger::log(LogLevel::DEBUG, "[Storage]header(). Record missing: " + next);
             set_record_missing(true);
             continue;
         }
@@ -368,7 +378,7 @@ void Storage::add_records_after(
         }
 
         // add next's parent
-        after_q.emplace(next_dc.prevhash());
+        after_q.emplace(next_dc.header().prevhash());
     }
 }
 

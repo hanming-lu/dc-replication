@@ -4,6 +4,7 @@
 #include <openssl/aes.h>
 #include <openssl/hmac.h>
 #include <openssl/err.h>
+#include <openssl/sha.h>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -225,4 +226,23 @@ std::string Crypto::s_hmac_sha256(
         ::EVP_sha256(), s_hmac_key, s_klen, (unsigned char *)data, dlen, digest, &dilen);
 
     return b2a_hex(digest, dilen);
+}
+
+std::string Crypto::bin_sha256(
+    const char *data, unsigned int dlen)
+{
+    unsigned char hash_buf[SHA256_DIGEST_LENGTH];
+    std::string emp_str("");
+    SHA256_CTX hsh_ctx;
+    if (!SHA256_Init(&hsh_ctx)){
+        return emp_str;         // Fail silently
+    }
+    if (!SHA256_Update(&hsh_ctx, (void *)data, dlen))){
+        return emp_str;
+    }
+    if (!SHA256_Final(hash_buf, &hsh_ctx)){
+        return emp_str;
+    }
+
+    return std::string(hash_buf, SHA256_DIGEST_LENGTH); // use string as container for binary format
 }

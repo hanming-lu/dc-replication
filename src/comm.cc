@@ -192,7 +192,7 @@ void Comm::run_dc_server_listen_mcast_and_client()
             std::string msg = this->recv_string(&socket_from_mcast);
             capsule::CapsulePDU in_dc;
             in_dc.ParseFromString(msg);
-            if (in_dc.msgtype() != REPLICATION_ACK)
+            if (in_dc.header().msgtype() != REPLICATION_ACK)
             {
                 // Put mcast msg to mcast_q
                 this->m_dc_server->mcast_q_enqueue(msg);
@@ -224,7 +224,7 @@ void Comm::run_dc_server_send_ack_to_replyaddr() // only run when OUTGOING_MODE 
         capsule::CapsulePDU out_ack_dc;
         out_ack_dc.ParseFromString(out_msg);
 
-        const std::string &replyaddr = out_ack_dc.replyaddr();
+        const std::string &replyaddr = out_ack_dc.header().replyaddr();
         Logger::log(LogLevel::DEBUG, "[DC SERVER] sending ack to replyaddr: "+ replyaddr);
 
         // check if replyaddr is in socket_send_ack_map, if not, create a new connection

@@ -1,6 +1,9 @@
 #ifndef __DCCLIENT_H
 #define __DCCLIENT_H
 
+#include "config.h"
+#if HAS_LOCAL_DC_CLIENT
+
 #include "crypto.hpp"
 #include "client_comm.hpp"
 
@@ -24,5 +27,7 @@ public:
 
     std::string m_prev_hash = "init";
 };
+
+#endif // HAS_LOCAL_DC_CLIENT
 
 #endif // __DCCLIENT_H

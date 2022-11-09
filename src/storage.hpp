@@ -37,6 +37,8 @@ private:
         std::vector<capsule::CapsulePDU> &records_to_return,
         std::unordered_set<std::string> &records_to_return_hash);
 
+    Crypto crypto;
+
 public:
     // Initiate
     Storage(const std::string &db_path);

@@ -1,6 +1,9 @@
 #ifndef __CLIENT_COMM_H
 #define __CLIENT_COMM_H
 
+#include "config.h"
+#if HAS_LOCAL_DC_CLIENT 
+
 #include <string>
 #include <unordered_map>
 #include <zmq.hpp>
@@ -52,4 +55,6 @@ public:
     }
 
 };
+
+#endif // HAS_LOCAL_DC_CLIENT
 #endif // __CLIENT_COMM_H

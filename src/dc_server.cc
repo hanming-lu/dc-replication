@@ -118,12 +118,12 @@ int DC_Server::thread_handle_mcast_msg()
         capsule::CapsulePDU in_dc;
         in_dc.ParseFromString(in_msg);
 
-        if (in_dc.prevhash() == "")
+        if (in_dc.header().prevhash() == "")
             continue;
 
 #if OUTGOING_MODE == 1 or OUTGOING_MODE == 2
         verify_dc(&in_dc, &this->crypto);
-        in_dc.set_verified(true);
+        in_dc.header().set_verified(true);
 
 #elif OUTGOING_MODE == 3
         // verify hmac digest

@@ -1,5 +1,7 @@
 #include "client_comm.hpp"
 
+#if HAS_LOCAL_DC_CLIENT
+
 #include <cstdlib>
 
 #include "capsule.pb.h"
@@ -203,3 +205,4 @@ void ClientComm::run_dc_client_listen_server()
         }
     }
 }
+#endif // HAS_LOCAL_DC_CLIENT

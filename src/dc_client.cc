@@ -1,3 +1,6 @@
+#include "config.h"
+#if HAS_LOCAL_DC_CLIENT
+
 #include "dc_client.hpp"
 
 #include <string>
@@ -5,7 +8,6 @@
 
 #include "capsule.pb.h"
 #include "request.pb.h"
-#include "config.h"
 #include "crypto.hpp"
 #include "crypto_util.hpp"
 #include "util/logging.hpp"
@@ -204,3 +206,4 @@ void DC_Client::freshness_get()
 
     client_comm.send_get_req(out_msg);
 }
+#endif // HAS_LOCAL_CLIENT
