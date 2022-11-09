@@ -237,12 +237,12 @@ std::string Crypto::bin_sha256(
     if (!SHA256_Init(&hsh_ctx)){
         return emp_str;         // Fail silently
     }
-    if (!SHA256_Update(&hsh_ctx, (void *)data, dlen))){
+    if (!SHA256_Update(&hsh_ctx, (void *)data, dlen)){
         return emp_str;
     }
     if (!SHA256_Final(hash_buf, &hsh_ctx)){
         return emp_str;
     }
 
-    return std::string(hash_buf, SHA256_DIGEST_LENGTH); // use string as container for binary format
+    return std::string((char *)hash_buf, SHA256_DIGEST_LENGTH); // use string as container for binary format
 }

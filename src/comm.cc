@@ -99,6 +99,7 @@ Comm::Comm(std::string ip, int64_t server_id, bool is_leader, DC_Server *dc_serv
 
 void Comm::run_leader_dc_server_handle_ack_opt1() // only run when OUTGOING_MODE == 2
 {
+#if OUTGOING_MODE==2
     /* 
     Client recv optimization #1 - one ack:
      1. dc servers sign their acks
@@ -164,6 +165,7 @@ void Comm::run_leader_dc_server_handle_ack_opt1() // only run when OUTGOING_MODE
             }
         }
     }
+#endif
 }
 
 void Comm::run_dc_server_listen_mcast_and_client()
@@ -250,6 +252,7 @@ void Comm::run_dc_server_send_ack_to_replyaddr() // only run when OUTGOING_MODE 
 
 void Comm::run_dc_server_send_ack_to_leader() // only run when OUTGOING_MODE == 2
 {
+#if OUTGOING_MODE==2
     std::vector<zmq::socket_t *> socket_send_ack_l;
     for (auto &addr : m_leader_dc_server_addrs)
     {
@@ -279,6 +282,7 @@ void Comm::run_dc_server_send_ack_to_leader() // only run when OUTGOING_MODE == 
     {
         delete socket;
     }
+#endif
 }
 
 void Comm::run_dc_server_send_ack_to_proxy() // only run when OUTGOING_MODE == 3

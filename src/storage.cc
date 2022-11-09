@@ -44,9 +44,7 @@ Storage::Storage(const std::string &db_path)
 
         // construct internal state (i.e. reverse_map, sources, sinks)
         
-        dc->header().SerializeToString(&serialized_header);
-        std::string header_hash = crypto.bin_sha256(serialized_header.c_str(), serialized_header.size());
-        update_internal_state(header_hash, dc.header().prevhash(), /* update_record_missing */ false);
+        update_internal_state(dc.header_hash(), dc.header().prevhash(), /* update_record_missing */ false);
     }
     delete it;
 
@@ -57,13 +55,10 @@ Storage::Storage(const std::string &db_path)
 bool Storage::put(const capsule::CapsulePDU *dc)
 {
     // store in rocksdb
-    std::string serialized_dc, serialized_header;
+    std::string serialized_dc;
     dc->SerializeToString(&serialized_dc);
-    dc->header().SerializeToString(&serialized_header);
     
-    std::string header_hash = crypto.bin_sha256(serialized_header.c_str(), serialized_header.size());
-    if (header_hash.empty())
-        return false;
+    std::string header_hash = dc->header_hash();
 
     rocksdb::Status status =
         db->Put(rocksdb::WriteOptions(), header_hash, serialized_dc);

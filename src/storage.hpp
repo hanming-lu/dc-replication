@@ -7,6 +7,7 @@
 #include <vector>
 #include "capsule.pb.h"
 #include "rocksdb/db.h"
+#include "crypto.hpp"
 
 class Storage
 {

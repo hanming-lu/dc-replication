@@ -113,18 +113,20 @@ int DC_Server::thread_handle_mcast_msg()
         if (in_msg == "")
             continue;
 
-        Logger::log(LogLevel::DEBUG, "Received a mcast msg: " + in_msg);
+        Logger::log(LogLevel::DEBUG, "Received a mcast msg: "); //+ in_msg);
 
         capsule::CapsulePDU in_dc;
         in_dc.ParseFromString(in_msg);
 
-        if (in_dc.header().prevhash() == "")
-            continue;
+        //if (in_dc.header().prevhash() == "")
+        //    continue;
+
+        Logger::log(LogLevel::DEBUG, "prevhash checked "); //+ in_msg);
+        capsule::CapsuleHeader *in_dc_header = in_dc.mutable_header();
 
 #if OUTGOING_MODE == 1 or OUTGOING_MODE == 2
         verify_dc(&in_dc, &this->crypto);
-        in_dc.header().set_verified(true);
-
+        in_dc_header->set_verified(true);
 #elif OUTGOING_MODE == 3
         // verify hmac digest
         std::string s_digest_expected = crypto.s_hmac_sha256(
@@ -197,21 +199,24 @@ int DC_Server::thread_handle_mcast_msg()
             bool succ = storage.put(&in_dc);
             if (!succ)
             {
-                Logger::log(LogLevel::WARNING, "Append DataCapsule FAILED, skipped. Hash: " + in_dc.hash());
+                Logger::log(LogLevel::WARNING, "Append DataCapsule FAILED, skipped. Hash: "); //+ in_dc.hash());
                 continue;
             }
             else
             {
-                Logger::log(LogLevel::DEBUG, "Successfully appended Hash: " + in_dc.hash());
+                Logger::log(LogLevel::DEBUG, "Successfully appended Hash: "); // + in_dc.hash());
             }
         }
 
         // append signed ack to ack_q
         capsule::CapsulePDU ack_dc;
-        ack_dc.set_sender(in_dc.sender());
-        ack_dc.set_hash(in_dc.hash());
-        ack_dc.set_msgtype(REPLICATION_ACK);
-        ack_dc.set_replyaddr(in_dc.replyaddr());
+        capsule::CapsuleHeader *ack_dc_header = ack_dc.mutable_header();
+
+        ack_dc_header->set_sender(in_dc_header->sender());
+        ack_dc_header->set_msgtype(REPLICATION_ACK);
+        ack_dc_header->set_replyaddr(in_dc_header->replyaddr());
+        ack_dc.set_header_hash(in_dc.header_hash()); // ack_dc's header hash == in_dc's header_hash
+        //ack_dc.set_hash(in_dc.hash());
 #if OUTGOING_MODE == 1 or OUTGOING_MODE == 2
         sign_dc(&ack_dc, &this->crypto);
 #elif OUTGOING_MODE == 3
@@ -284,6 +289,7 @@ int DC_Server::thread_handle_serve_request_msg()
             }
             else
             {
+                Logger::log(LogLevel::INFO, "Successfully fetched DC.");
                 Logger::log(LogLevel::DEBUG, "Successfully fetched DC. Hash: " + hash);
                 serve_resp.set_success(true);
                 *serve_resp.mutable_record() = dc_to_return;
@@ -484,21 +490,21 @@ void DC_Server::handle_pairing_response(const capsule::PairingResponse &resp)
         bool succ = verify_dc(&in_dc, &this->crypto);
         if (succ != true)
         {
-            Logger::log(LogLevel::INFO, "[DC Pairing] Paired DC Record Verification Failed, but stored anyway. Hash: " + in_dc.hash());
+            Logger::log(LogLevel::INFO, "[DC Pairing] Paired DC Record Verification Failed, but stored anyway. Hash: "); //+ in_dc.hash());
         }
         else
         {
-            Logger::log(LogLevel::DEBUG, "[DC Pairing] Paired DC Record Verification Successful. Hash: " + in_dc.hash());
+            Logger::log(LogLevel::DEBUG, "[DC Pairing] Paired DC Record Verification Successful. Hash: "); // + in_dc.hash());
         }
 
         succ = storage.put(&in_dc);
         if (!succ)
         {
-            Logger::log(LogLevel::WARNING, "[DC Pairing] Append Paired DC FAILED. Hash: " + in_dc.hash());
+            Logger::log(LogLevel::WARNING, "[DC Pairing] Append Paired DC FAILED. Hash: "); //+ in_dc.hash());
         }
         else
         {
-            Logger::log(LogLevel::DEBUG, "[DC Pairing] Successfully appended Paired DC Hash: " + in_dc.hash());
+            Logger::log(LogLevel::DEBUG, "[DC Pairing] Successfully appended Paired DC Hash:"); // " + in_dc.hash());
         }
     }
 

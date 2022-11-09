@@ -24,6 +24,7 @@ int thread_dc_server(int64_t server_id, bool is_leader)
     return 0;
 }
 
+#if HAS_LOCAL_DC_CLIENT
 int thread_dc_client()
 {
     // DC Client Init
@@ -37,6 +38,7 @@ int thread_dc_client()
 
     return 0;
 }
+#endif
 
 int main(int argc, char *argv[])
 {

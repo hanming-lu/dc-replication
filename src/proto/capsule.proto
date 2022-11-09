@@ -18,10 +18,11 @@ message CapsuleHeader {
 
 
 message CapsulePDU {
-  optional CapsuleHeader header = 1; // 
-  optional bytes signature = 2; // signed using the hash of the header
-  optional int64 signature_len = 3;
-  optional bytes payload_in_transit = 4;
+  optional CapsuleHeader header = 1; //
+  optional bytes header_hash = 2; // hash of header 
+  optional bytes signature = 3; // signed using header hash
+  optional int64 signature_len = 4;
+  optional bytes payload_in_transit = 5;
 }
 
 /* 

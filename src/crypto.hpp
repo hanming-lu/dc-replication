@@ -21,7 +21,7 @@ public:
     // Server HMAC
     std::string s_hmac_sha256(const char *data, unsigned int dlen);
     
-    std::string Crypto::bin_sha256(const char *data, unsigned int dlen)
+    std::string bin_sha256(const char *data, unsigned int dlen);
 
 private:
     /* for sign */
