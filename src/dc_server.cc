@@ -126,7 +126,7 @@ int DC_Server::thread_handle_mcast_msg()
 
 #if OUTGOING_MODE == 1 or OUTGOING_MODE == 2
         verify_dc(&in_dc, &this->crypto);
-        in_dc_header->set_verified(true);
+//        in_dc_header->set_verified(true);
 #elif OUTGOING_MODE == 3
         // verify hmac digest
         std::string s_digest_expected = crypto.s_hmac_sha256(
